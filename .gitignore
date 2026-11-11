@@ -1,0 +1,11 @@
+# Real team data and secrets never go to GitHub
+supabase/seed.sql
+scripts/*.local.json
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.DS_Store
+supabase/.temp/
+supabase/.branches/
