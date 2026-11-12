@@ -66,6 +66,11 @@ export interface LibraryItem {
   status: string | null;
   url: string | null;
   second_url: string | null;
+  /** From the Figma Projects sheet: version/section, feature area, file password, notes. */
+  version?: string | null;
+  category?: string | null;
+  password?: string | null;
+  notes?: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;

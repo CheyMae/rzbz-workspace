@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Copy, Eye, EyeOff, Plus, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
 import { TextInput } from '../components/TextInput';
 import { Dialog, GroupHeader, Loading, Tag } from '../components/ui';
 import { useData } from '../lib/data';
-import { fmtDate } from '../lib/format';
 import type { LibraryItem } from '../lib/types';
 
 const SECTION_EMOJI: Record<string, string> = { 'Asset Library': '🧩', 'Docs & Templates': '📄', 'All Figma Links': '🎨', 'Content Tracker': '📝', 'Data Study': '📈' };
@@ -34,7 +33,7 @@ export function Library() {
   const rows = ws.library
     .filter((l) => !section || l.section === section)
     .filter((l) => !group || l.product_group === group)
-    .filter((l) => !q || `${l.name} ${l.product_group ?? ''} ${l.type ?? ''}`.toLowerCase().includes(q.toLowerCase()));
+    .filter((l) => !q || `${l.name} ${l.product_group ?? ''} ${l.type ?? ''} ${l.category ?? ''} ${l.version ?? ''} ${l.notes ?? ''}`.toLowerCase().includes(q.toLowerCase()));
   const bySection = new Map<string, LibraryItem[]>();
   for (const l of rows) (bySection.get(l.section) ?? bySection.set(l.section, []).get(l.section)!).push(l);
   const flip = (s: Set<string>, k: string) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; };
@@ -64,7 +63,7 @@ export function Library() {
         <Button icon={<Plus size={14} />} onClick={() => setAdding(true)}>New</Button>
       </div>
       <div className="table" role="table">
-        <div className="tr th t-caption cols-library" role="row"><span>Name</span><span>Product / Group</span><span>Type</span><span>Link</span><span>Last edited</span></div>
+        <div className="tr th t-caption cols-library" role="row"><span>Name</span><span>Product / Group</span><span>Category</span><span>Type</span><span>Links</span><span>Password</span></div>
         {[...bySection.entries()].map(([s, items]) => {
           const shown = more.has(s) ? items : items.slice(0, 5);
           return (
@@ -73,11 +72,18 @@ export function Library() {
               {!closed.has(s) && <>
                 {shown.map((l) => (
                   <div key={l.id} className="tr t-body cols-library" role="row">
-                    <span>{SECTION_EMOJI[s] ?? '🔗'} {l.name}</span>
+                    <span className="lib-name" title={[l.name, l.version, l.notes].filter(Boolean).join(' · ')}>
+                      <span>{SECTION_EMOJI[s] ?? '🔗'} {l.name}</span>
+                      {l.version && <span className="t-caption muted">{l.version}</span>}
+                    </span>
                     <span>{l.product_group ? <Tag>{l.product_group}</Tag> : <span className="muted">—</span>}</span>
+                    <span className="t-caption">{l.category ?? <span className="muted">—</span>}</span>
                     <span>{l.type ? <Tag tone={typeTone(l.type)}>{l.type}</Tag> : <span className="muted">—</span>}</span>
-                    <span className="t-caption">{l.url ? <a href={l.url} target="_blank" rel="noreferrer" className="link-strong">{linkLabel(l.url)}</a> : <span className="muted">—</span>}</span>
-                    <span className="t-caption muted">{l.updated_at > l.created_at ? fmtDate(l.updated_at) : '—'}</span>
+                    <span className="t-caption lib-links">
+                      {l.url ? <a href={l.url} target="_blank" rel="noreferrer" className="link-strong">{linkLabel(l.url)}</a> : <span className="muted">—</span>}
+                      {l.second_url && <a href={l.second_url} target="_blank" rel="noreferrer" className="plain-link muted">{/docs\.google\.com\/spreadsheets/.test(l.second_url) ? 'Spiels ↗' : 'More ↗'}</a>}
+                    </span>
+                    <span className="t-caption">{l.password ? <Secret value={l.password} label={l.name} /> : <span className="muted">—</span>}</span>
                   </div>
                 ))}
                 {items.length > 5 && <button type="button" className="show-more t-caption muted" onClick={() => setMore(flip(more, s))}>{more.has(s) ? 'Show fewer' : `Show ${items.length - 5} more`}</button>}
@@ -108,5 +114,21 @@ function NewLink({ sections, onClose, onSave }: { sections: string[]; onClose: (
       <TextInput label="Product / Group" value={pg} onChange={(e) => setPg(e.target.value)} />
       <TextInput label="Type" placeholder="Figma file, Component, Design Process…" value={type} onChange={(e) => setType(e.target.value)} />
     </Dialog>
+  );
+}
+
+/** A file password: hidden until you ask, with a copy button. */
+function Secret({ value, label }: { value: string; label: string }) {
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+  return (
+    <span className="secret">
+      <code className={shown ? '' : 'muted'}>{shown ? value : '••••••'}</code>
+      <button type="button" className="icon-button" aria-label={`${shown ? 'Hide' : 'Show'} password for ${label}`} onClick={() => setShown(!shown)}>{shown ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+      <button type="button" className="icon-button" aria-label={`Copy password for ${label}`} onClick={async () => {
+        try { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { setShown(true); }
+      }}><Copy size={14} /></button>
+      {copied && <span className="t-caption muted">Copied</span>}
+    </span>
   );
 }

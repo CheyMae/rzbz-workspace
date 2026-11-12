@@ -267,7 +267,13 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .board-col .new-row { padding: 0; }
 .board-col .show-more { padding: var(--scale-50); }
 .cols-sprints { grid-template-columns: 2fr 2fr 0.6fr 0.6fr 1.6fr; }
-.cols-library { grid-template-columns: 2.4fr 1.2fr 1.1fr 1.1fr 0.9fr; }
+.cols-library { grid-template-columns: 2.4fr 1fr 1fr 0.8fr 1.5fr 1.2fr; }
+.lib-name { display: flex; flex-direction: column; min-width: 0; }
+.lib-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-links { display: flex; gap: var(--scale-100); align-items: center; }
+.secret { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.secret code { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.secret .icon-button { width: 24px; height: 24px; }
 .cols-archive { grid-template-columns: 3fr 1fr 100px; }
 .cols-archive-tasks { grid-template-columns: 3fr 1fr 1fr; }
 .row-current { background: var(--surface-subtle); }
