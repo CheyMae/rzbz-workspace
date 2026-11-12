@@ -16,7 +16,7 @@ const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_fee
 /** Type: is this an existing screen, a revamp, or something new. */
 const typeOptions = (['Existing', 'Revamp', 'New'] as const).map((t) => ({ value: t as string, label: t, tone: 'blue' as const }));
 
-type View = 'sprint' | 'board' | 'phase';
+type View = 'sprint' | 'board';
 
 /** Figma 05 · Project page. Sprints are a property here, with Add sprint. */
 export function ProjectPage() {
@@ -26,7 +26,8 @@ export function ProjectPage() {
   const [deleting, setDeleting] = useState(false);
   const ix = useIndex();
   const pins = usePinned();
-  const [view, setView] = usePref<View>('project.view', 'sprint');
+  const [savedView, setView] = usePref<View>('project.view', 'sprint');
+  const view: View = savedView === 'board' ? 'board' : 'sprint';
   const [open, setOpen] = useState<Task | null>(null);
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const p = ws.projects.find((x) => x.id === id);
@@ -51,7 +52,7 @@ export function ProjectPage() {
   const addable = ws.sprints.filter((s) => s.kind === 'sprint' && s.status !== 'closed' && !sprints.some((x) => x.id === s.id));
   const pinned = pins.isPinned(p.id);
 
-  // Tasks grouped by sprint (newest first), by phase, or as a board.
+  // Tasks grouped by sprint (newest first), or as a board.
   const bySprint = new Map<string, { sprint: Sprint | null; rows: Task[] }>();
   for (const t of tasks) {
     const k = t.sprint_id ?? 'none';
@@ -59,8 +60,6 @@ export function ProjectPage() {
     bySprint.get(k)!.rows.push(t);
   }
   const sprintGroups = [...bySprint.entries()].sort((a, b) => (b[1].sprint?.starts_on ?? '0').localeCompare(a[1].sprint?.starts_on ?? '0'));
-  const byPhase = new Map<string, Task[]>();
-  for (const t of tasks) { const k = t.phase ?? 'No phase'; (byPhase.get(k) ?? byPhase.set(k, []).get(k)!).push(t); }
   const toggle = (k: string) => setClosed((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
   const current = sprints.find((s) => s.status === 'open') ?? addable.find((s) => s.status === 'open');
 
@@ -100,14 +99,14 @@ export function ProjectPage() {
           </span>
         </dd>
 
+        <dt><User size={16} /> Project owner</dt>
+        <dd><PeoplePicker people={others} selected={owners} empty="—" onChange={(ids) => setProjectPeople(p.id, 'owner', ids)} /></dd>
+
         <dt><User size={16} /> Carry designers</dt>
         <dd><PeoplePicker people={designers} selected={leads} empty="No lead yet" onChange={(ids) => setProjectPeople(p.id, 'lead', ids)} /></dd>
 
         <dt><User size={16} /> Support</dt>
         <dd><PeoplePicker people={designers} selected={support} empty="—" onChange={(ids) => setProjectPeople(p.id, 'support', ids)} /></dd>
-
-        <dt><User size={16} /> Project owner</dt>
-        <dd><PeoplePicker people={others} selected={owners} empty="—" onChange={(ids) => setProjectPeople(p.id, 'owner', ids)} /></dd>
 
         <dt><Calendar size={16} /> Dates</dt>
         <dd className="date-pair">
@@ -163,25 +162,19 @@ export function ProjectPage() {
           <h2 className="t-title-section">Tasks <span className="t-caption muted">{tasks.length}</span></h2>
           <span className="grow" />
           <ViewTabs<View> value={view} onChange={setView} tabs={[
-            { value: 'sprint', label: 'By sprint' }, { value: 'board', label: 'Board' }, { value: 'phase', label: 'By phase' },
+            { value: 'sprint', label: 'By sprint' }, { value: 'board', label: 'Board' },
           ]} />
         </div>
         {view === 'board' ? <TaskBoard tasks={tasks} onOpen={setOpen} showProject={false} newTask={{ project_id: p.id, sprint_id: current?.id ?? null }} /> : (
           <div className="table" role="table">
-            <TaskTableHead cols={view === 'sprint' ? { phase: true, sprint: true } : { sprint: true }} />
+            <TaskTableHead cols={{ sprint: true }} />
             {view === 'sprint' && sprintGroups.map(([k, g]) => (
               <div key={k} role="rowgroup">
                 <GroupHeader open={!closed.has(k)} onToggle={() => toggle(k)} count={g.rows.length}>
                   {g.sprint ? <>🏃 {g.sprint.name} <span className="t-caption muted">
                     · {sprintLabel(g.sprint, today).toLowerCase()} · {g.sprint.status === 'closed' ? 'ended' : 'ends'} {fmtDate(g.sprint.ends_on, false)}</span></> : 'No sprint'}
                 </GroupHeader>
-                {!closed.has(k) && g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ phase: true, sprint: true }} />)}
-              </div>
-            ))}
-            {view === 'phase' && [...byPhase.entries()].map(([k, rows]) => (
-              <div key={k} role="rowgroup">
-                <GroupHeader open={!closed.has('ph' + k)} onToggle={() => toggle('ph' + k)} count={rows.length}>{k}</GroupHeader>
-                {!closed.has('ph' + k) && rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ sprint: true }} />)}
+                {!closed.has(k) && g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ sprint: true }} />)}
               </div>
             ))}
             <NewTaskRow defaults={{ project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' }} />
