@@ -15,10 +15,16 @@ Frontend on GitHub Pages; data and login in Supabase (project "RZBZ Design").
 
 ## How sprints work
 
-- Two weeks each. Sprint 21 = Oct 26 → Nov 8, 2026; earlier sprints are counted back from it.
+- Two weeks each, Monday → the second Friday. Numbered within a year: 2027 · Sprint 1 starts Mon Jan 4, 2027.
+- Only the app creates sprints (`ensure_next_sprint()`): the next Monday after the newest record, never a duplicate
+  number in the same year. Sprints and breaks can't overlap.
+- A pause gets a **Break** record instead of skipping or reusing a number.
+- 2026 records use the team's real dates (Sprints 5–21). Sprints 1–4 aren't tracked; their tasks are archived with
+  the old label. "Sprint 20" was used twice, so the October one is **Sprint 20b**. Aug 1 – Oct 11 is a Break.
 - A sprint stays **open** until someone closes it. Open and past its end date = **extended**.
 - `close_sprint(id, 'move')` moves unfinished tasks to the next sprint (creating it if needed);
-  `'keep'` leaves them where they are.
+  `'keep'` leaves them where they are. Either way, **Next up** tasks belong to the next sprint and start there as
+  **Not started**.
 - A task in a sprint automatically puts its project in that sprint (`project_sprints`).
   "Add sprint" on the Project page writes to the same table.
 

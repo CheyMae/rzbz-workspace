@@ -24,9 +24,26 @@ OUT = ROOT / "supabase/seed.sql"
 MEMBERS = ROOT / "scripts/members.local.json"
 NS = uuid.UUID("6f1c2a52-3d0e-4b7e-9a51-2a4f0c3e9b11")
 
-# Sprints are two weeks long; Sprint 21 runs Oct 26 -> Nov 8, 2026.
-SPRINT_21_START = dt.date(2026, 10, 26)
-CURRENT_SPRINT = 21
+# Real sprint dates as recorded by the team (2026 cycle). Sprints 1-4 (mid-2025) aren't tracked:
+# their tasks go to the archive with the old label. "Sprint 20" was used twice; the October one is 20b.
+D = dt.date
+SPRINTS = [  # (number, suffix, start, end)
+    (5, "", D(2025, 12, 22), D(2026, 1, 2)), (6, "", D(2026, 1, 5), D(2026, 1, 16)),
+    (7, "", D(2026, 1, 19), D(2026, 1, 30)), (8, "", D(2026, 2, 2), D(2026, 2, 13)),
+    (9, "", D(2026, 2, 16), D(2026, 2, 27)), (10, "", D(2026, 3, 2), D(2026, 3, 13)),
+    (11, "", D(2026, 3, 16), D(2026, 3, 27)), (12, "", D(2026, 3, 30), D(2026, 4, 10)),
+    (13, "", D(2026, 4, 13), D(2026, 4, 24)), (14, "", D(2026, 4, 27), D(2026, 5, 8)),
+    (15, "", D(2026, 5, 11), D(2026, 5, 22)), (16, "", D(2026, 5, 25), D(2026, 6, 5)),
+    (17, "", D(2026, 6, 8), D(2026, 6, 19)), (18, "", D(2026, 6, 22), D(2026, 7, 3)),
+    (19, "", D(2026, 7, 6), D(2026, 7, 17)), (20, "", D(2026, 7, 20), D(2026, 7, 31)),
+    (20, "b", D(2026, 10, 12), D(2026, 10, 25)), (21, "", D(2026, 10, 26), D(2026, 11, 8)),
+    (22, "", D(2026, 11, 23), D(2026, 12, 4)),
+]
+BREAKS = [(D(2026, 8, 1), D(2026, 10, 11))]   # the unnamed gap between Sprint 20 and 20b
+SPRINT_YEAR = 2026
+CURRENT_SPRINT = 21          # open (extended until closed); 22 is upcoming
+FIRST_TRACKED_SPRINT = 5
+SPRINT_20B_FROM = D(2026, 9, 1)  # Sprint 20 tasks due on/after this belong to 20b
 
 # Name spellings confirmed to be the same person, e.g. {"First": "First Last"}.
 # Kept in a git-ignored file because this repo is public. Only merge confirmed matches.
@@ -58,8 +75,14 @@ def uid(*parts):
     return u
 
 
+class Raw(str):
+    """Already a SQL literal (e.g. an empty string that must stay '' rather than null)."""
+
+
 def q(v):
     """SQL literal."""
+    if isinstance(v, Raw):
+        return str(v)
     if v is None or (isinstance(v, str) and v.strip() in ("", "-", "—")):
         return "null"
     if isinstance(v, bool):
@@ -196,13 +219,19 @@ def main():
 
     # Sprints --------------------------------------------------------------
     sprint_id, sprint_rows = {}, []
-    for n in range(1, CURRENT_SPRINT + 1):
-        start = SPRINT_21_START - dt.timedelta(days=14 * (CURRENT_SPRINT - n))
-        end = start + dt.timedelta(days=13)
-        status = "open" if n == CURRENT_SPRINT else "closed"
-        sprint_id[n] = uid("sprint", n)
-        sprint_rows.append([sprint_id[n], n, start, end, status,
-                            None if status == "open" else dt.datetime.combine(end, dt.time(18))])
+    for n, suffix, start, end in SPRINTS:
+        key = f"{n}{suffix}"
+        status = "open" if n == CURRENT_SPRINT else "upcoming" if n > CURRENT_SPRINT else "closed"
+        sprint_id[key] = uid("sprint", key)
+        sprint_rows.append([sprint_id[key], SPRINT_YEAR, n, Raw(q(suffix) if suffix else "''"), "sprint", start, end, status,
+                            f"{end} 18:00+08" if status == "closed" else None])
+    for start, end in BREAKS:
+        sprint_rows.append([uid("sprint", "break", start), SPRINT_YEAR, None, Raw("''"), "break", start, end, "closed", None])
+
+    def sprint_key(sn, r):
+        if sn == 20 and (date(r["Due End"]) or date(r["Due Start"]) or D(2000, 1, 1)) >= SPRINT_20B_FROM:
+            return "20b"
+        return str(sn)
 
     # Projects -------------------------------------------------------------
     proj_rows, pp_rows, ppr_rows = [], [], []
@@ -255,15 +284,19 @@ def main():
         if status is None:
             problems[f"task status '{r['Status']}' -> not_started"] += 1
             status = "not_started"
-        # Tasks missing a project or a sprint go to the archive.
-        orphan = not pid or not sn
-        if orphan:
+        # Tasks missing a project or a sprint go to the archive; so do tasks from Sprints 1-4.
+        legacy = f"Sprint {sn}" if sn and sn < FIRST_TRACKED_SPRINT else None
+        if legacy:
+            problems["archived: task from untracked Sprints 1-4"] += 1
+            sn = None
+        orphan = not pid or not sn or bool(legacy)
+        if orphan and not legacy:
             problems["archived: task missing project or sprint"] += 1
             if not pid and not sn:
                 problems["  (of which missing both)"] += 1
             if sn == CURRENT_SPRINT and status not in ("done", "archived"):
                 problems["  (of which open in the current sprint)"] += 1
-        task_rows.append([tid, r["Task"].strip(), pid, sprint_id.get(sn), None, status,
+        task_rows.append([tid, r["Task"].strip(), pid, sprint_id.get(sprint_key(sn, r)) if sn else None, legacy, status,
                           PRIORITY.get(clean(r["Priority"])), clean(r["Phase"]), clean(r["Type"]), None,
                           clean(r["Day"]), clean(r["Effort"]), date(r["Due Start"]), date(r["Due End"]),
                           clean(r["Summary"]), clean(r["Notes (page content)"]), clean(r["Deliverables"]),
@@ -322,7 +355,8 @@ def main():
     # Write ----------------------------------------------------------------
     insert("products", ["id", "name", "emoji", "description", "platforms", "design_system_url", "notes", "sort_order"],
            prod_rows, sql)
-    insert("sprints", ["id", "number", "starts_on", "ends_on", "status", "closed_at"], sprint_rows, sql)
+    insert("sprints", ["id", "year", "number", "suffix", "kind", "starts_on", "ends_on", "status", "closed_at"],
+           sprint_rows, sql)
     insert("projects", ["id", "name", "product_id", "status", "priority", "type", "owner_requester", "starts_on",
                         "ends_on", "about", "legacy_code", "legacy_year", "notion_id", "is_archived"], proj_rows, sql)
     insert("project_people", ["project_id", "person_id", "role"], pp_rows, sql)
@@ -349,7 +383,8 @@ def main():
     print(f"tasks {len(tasks_ws)} current + {len(arch_t_ws)} archived | assignee links {len(ta_rows)} | "
           f"parent links {len(parent_updates)}")
     print(f"library {len(lib_rows)} | launch plan {len(launch_rows)} | pages 2")
-    print("sprint 21:", sprint_rows[-1][2], "->", sprint_rows[-1][3], "| sprint 1:", sprint_rows[0][2])
+    print("sprints:", ", ".join(f"{r[2]}{r[3].strip(chr(39))} {r[5]:%b %d}" if r[4] == "sprint" else f"break {r[5]:%b %d}"
+                                for r in sprint_rows))
     print("data to sort out later:")
     for k, v in problems.most_common():
         print(f"  {v:5d}  {k}")
