@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, Calendar, CheckSquare, Clock, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
 import { DeleteProject } from './Projects';
 import { Avatar } from '../components/Avatar';
-import { GroupHeader, Loading, Menu, MenuItem, Tag, TagSelect, ViewTabs } from '../components/ui';
+import { GroupHeader, Loading, Menu, MenuItem, TagSelect, ViewTabs } from '../components/ui';
 import { NewTaskRow, TaskBoard, TaskDrawer, TaskRow, TaskTableHead, priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
 import { PROJECT_STATUS, firstName, fmtDate, plural } from '../lib/format';
@@ -13,6 +13,8 @@ import type { Person, ProjectStatus, Sprint, Task } from '../lib/types';
 
 const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_feedback', 'done', 'canceled'] as ProjectStatus[])
   .map((s) => ({ value: s, ...PROJECT_STATUS[s] }));
+/** Type: is this an existing screen, a revamp, or something new. */
+const typeOptions = (['Existing', 'Revamp', 'New'] as const).map((t) => ({ value: t as string, label: t, tone: 'blue' as const }));
 
 type View = 'sprint' | 'board' | 'phase';
 
@@ -39,6 +41,10 @@ export function ProjectPage() {
   const product = ix.productOf(p);
   const leads = ix.people(p, 'lead');
   const support = ix.people(p, 'support');
+  const owners = ix.people(p, 'owner');
+  // Lead and support are designers only; anyone else can be the project owner.
+  const designers = ws.people.filter((x) => x.is_designer);
+  const others = ws.people.filter((x) => !x.is_designer && x.active !== false);
   const tasks = ix.tasksOf(p);
   const pr = ix.progress(tasks);
   const sprints = ix.projectSprints(p);
@@ -95,10 +101,13 @@ export function ProjectPage() {
         </dd>
 
         <dt><User size={16} /> Carry designers</dt>
-        <dd><PeoplePicker people={ws.people} selected={leads} empty="No lead yet" onChange={(ids) => setProjectPeople(p.id, 'lead', ids)} /></dd>
+        <dd><PeoplePicker people={designers} selected={leads} empty="No lead yet" onChange={(ids) => setProjectPeople(p.id, 'lead', ids)} /></dd>
 
         <dt><User size={16} /> Support</dt>
-        <dd><PeoplePicker people={ws.people} selected={support} empty="—" onChange={(ids) => setProjectPeople(p.id, 'support', ids)} /></dd>
+        <dd><PeoplePicker people={designers} selected={support} empty="—" onChange={(ids) => setProjectPeople(p.id, 'support', ids)} /></dd>
+
+        <dt><User size={16} /> Project owner</dt>
+        <dd><PeoplePicker people={others} selected={owners} empty="—" onChange={(ids) => setProjectPeople(p.id, 'owner', ids)} /></dd>
 
         <dt><Calendar size={16} /> Dates</dt>
         <dd className="date-pair">
@@ -133,7 +142,7 @@ export function ProjectPage() {
         <dd><TagSelect label="Priority" value={p.priority} options={priorityOptions} onChange={(v) => updateProject(p.id, { priority: v })} /></dd>
 
         <dt><Type size={16} /> Type</dt>
-        <dd>{p.type ? <Tag tone="blue">{p.type}</Tag> : <span className="muted">—</span>}</dd>
+        <dd><TagSelect label="Type" value={p.type} options={typeOptions} placeholder="—" onChange={(v) => updateProject(p.id, { type: v })} /></dd>
 
         <dt><CheckSquare size={16} /> Task progress</dt>
         <dd className="t-body">{pr.total ? `${pr.pct}% · ${pr.done} of ${plural(pr.total, 'task')} done` : 'No tasks yet'}</dd>
@@ -157,22 +166,22 @@ export function ProjectPage() {
             { value: 'sprint', label: 'By sprint' }, { value: 'board', label: 'Board' }, { value: 'phase', label: 'By phase' },
           ]} />
         </div>
-        {view === 'board' ? <TaskBoard tasks={tasks} onOpen={setOpen} showProject={false} /> : (
+        {view === 'board' ? <TaskBoard tasks={tasks} onOpen={setOpen} showProject={false} newTask={{ project_id: p.id, sprint_id: current?.id ?? null }} /> : (
           <div className="table" role="table">
-            <TaskTableHead />
+            <TaskTableHead cols={view === 'sprint' ? { phase: true, sprint: true } : { sprint: true }} />
             {view === 'sprint' && sprintGroups.map(([k, g]) => (
               <div key={k} role="rowgroup">
                 <GroupHeader open={!closed.has(k)} onToggle={() => toggle(k)} count={g.rows.length}>
                   {g.sprint ? <>🏃 {g.sprint.name} <span className="t-caption muted">
                     · {sprintLabel(g.sprint, today).toLowerCase()} · {g.sprint.status === 'closed' ? 'ended' : 'ends'} {fmtDate(g.sprint.ends_on, false)}</span></> : 'No sprint'}
                 </GroupHeader>
-                {!closed.has(k) && g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} />)}
+                {!closed.has(k) && g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ phase: true, sprint: true }} />)}
               </div>
             ))}
             {view === 'phase' && [...byPhase.entries()].map(([k, rows]) => (
               <div key={k} role="rowgroup">
                 <GroupHeader open={!closed.has('ph' + k)} onToggle={() => toggle('ph' + k)} count={rows.length}>{k}</GroupHeader>
-                {!closed.has('ph' + k) && rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} />)}
+                {!closed.has('ph' + k) && rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ sprint: true }} />)}
               </div>
             ))}
             <NewTaskRow defaults={{ project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' }} />
@@ -188,7 +197,7 @@ export function ProjectPage() {
 
 function PeoplePicker({ people, selected, empty, onChange }: { people: Person[]; selected: Person[]; empty: string; onChange: (ids: string[]) => void }) {
   const ids = new Set(selected.map((p) => p.id));
-  const choices = people.filter((p) => p.active !== false || ids.has(p.id));
+  const choices = [...people.filter((p) => p.active !== false || ids.has(p.id)), ...selected.filter((s) => !people.some((p) => p.id === s.id))];
   return (
     <Menu align="left" trigger={(_, t) => (
       <button type="button" className="people-button t-body" onClick={t}>

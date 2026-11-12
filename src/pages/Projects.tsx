@@ -47,7 +47,7 @@ export function Projects() {
   const toggle = (set: Set<string>, k: string) => { const n = new Set(set); n.has(k) ? n.delete(k) : n.add(k); return n; };
 
   async function newProject() {
-    const id = await createProject({ name: 'Untitled project', status: 'not_started' });
+    const id = await createProject({ name: 'Untitled project', status: 'not_started', product_id: ix.holding?.id ?? null });
     if (id) nav(`/projects/${id}`);
   }
 

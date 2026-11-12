@@ -41,7 +41,7 @@ export function Home() {
 
   async function newProject() {
     // A project made from Home belongs to the current sprint, so it shows up here.
-    const id = await createProject({ name: 'Untitled project', status: 'not_started' });
+    const id = await createProject({ name: 'Untitled project', status: 'not_started', product_id: ix.holding?.id ?? null });
     if (!id) return;
     if (current) await addProjectSprint(id, current.id);
     nav(`/projects/${id}`);

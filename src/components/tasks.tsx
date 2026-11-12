@@ -11,13 +11,26 @@ import type { Priority, Task, TaskStatus } from '../lib/types';
 export const statusOptions = TASK_FLOW.map((s) => ({ value: s, ...TASK_STATUS[s] }));
 export const priorityOptions = (['high', 'medium', 'low'] as Priority[]).map((p) => ({ value: p, ...PRIORITY[p] }));
 
-/** One task row (Figma App/Task Row): done box, title, status, priority, assignee, due. */
-export function TaskRow({ task, onOpen, project }: { task: Task; onOpen: (t: Task) => void; project?: ReactNode }) {
+/** Optional columns: Phase (text) and Sprint (a dropdown, to move a task to another sprint). */
+export type TaskCols = { phase?: boolean; sprint?: boolean };
+const colsClass = (c: TaskCols = {}) => `cols-tasks${c.phase ? ' has-phase' : ''}${c.sprint ? ' has-sprint' : ''}`;
+
+/** Sprints a task can move to: open and upcoming ones, plus the one it's in now. */
+function useSprintOptions(current: string | null) {
+  const { ws } = useData();
+  return ws.sprints.filter((s) => s.kind === 'sprint' && (s.status !== 'closed' || s.id === current))
+    .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+    .map((s) => ({ value: s.id, label: s.status === 'upcoming' ? `${s.name} (next)` : s.name, tone: 'default' as const }));
+}
+
+/** One task row (Figma App/Task Row): done box, title, [phase], [sprint], status, priority, assignee, due. */
+export function TaskRow({ task, onOpen, project, cols }: { task: Task; onOpen: (t: Task) => void; project?: ReactNode; cols?: TaskCols }) {
   const { updateTask } = useData();
   const ix = useIndex();
+  const sprintOptions = useSprintOptions(task.sprint_id);
   const done = task.status === 'done';
   return (
-    <div className="tr t-body cols-tasks" role="row">
+    <div className={`tr t-body ${colsClass(cols)}`} role="row">
       <button type="button" className={`checkbox${done ? ' is-checked' : ''}`} role="checkbox" aria-checked={done}
         aria-label={done ? `Mark ${task.title} not done` : `Mark ${task.title} done`}
         onClick={() => updateTask(task.id, { status: done ? 'in_progress' : 'done' })}>
@@ -26,6 +39,9 @@ export function TaskRow({ task, onOpen, project }: { task: Task; onOpen: (t: Tas
       <button type="button" className="row-link task-title" onClick={() => onOpen(task)}>
         {task.title}{project && <span className="t-caption muted"> · {project}</span>}
       </button>
+      {cols?.phase && <span className={`t-caption${task.phase ? '' : ' muted'}`} title={task.phase ?? undefined}>{task.phase ?? '—'}</span>}
+      {cols?.sprint && <span><TagSelect label={`Sprint of ${task.title}`} value={task.sprint_id} options={sprintOptions} placeholder="No sprint"
+        onChange={(v) => updateTask(task.id, { sprint_id: v })} /></span>}
       <span><TagSelect label={`Status of ${task.title}`} value={task.status} options={statusOptions}
         onChange={(v) => v && updateTask(task.id, { status: v })} /></span>
       <span><TagSelect label={`Priority of ${task.title}`} value={task.priority} options={priorityOptions} placeholder="—"
@@ -36,10 +52,10 @@ export function TaskRow({ task, onOpen, project }: { task: Task; onOpen: (t: Tas
   );
 }
 
-export function TaskTableHead() {
+export function TaskTableHead({ cols }: { cols?: TaskCols } = {}) {
   return (
-    <div className="tr th t-caption cols-tasks" role="row">
-      <span /><span>Task</span><span>Status</span><span>Priority</span><span>Assignee</span><span>Due</span>
+    <div className={`tr th t-caption ${colsClass(cols)}`} role="row">
+      <span /><span>Task</span>{cols?.phase && <span>Phase</span>}{cols?.sprint && <span>Sprint</span>}<span>Status</span><span>Priority</span><span>Assignee</span><span>Due</span>
     </div>
   );
 }
@@ -60,7 +76,11 @@ export function NewTaskRow({ defaults, label = 'New task' }: { defaults: Partial
 }
 
 /** Columns by task status (Figma 07b). */
-export function TaskBoard({ tasks, onOpen, showProject = true }: { tasks: Task[]; onOpen: (t: Task) => void; showProject?: boolean }) {
+export function TaskBoard({ tasks, onOpen, showProject = true, newTask }: {
+  tasks: Task[]; onOpen: (t: Task) => void; showProject?: boolean;
+  /** When set, each column gets "+ New task" that starts in that column's status. */
+  newTask?: Partial<Task>;
+}) {
   const ix = useIndex();
   const { updateTask } = useData();
   const [all, setAll] = useState<Set<TaskStatus>>(new Set());
@@ -79,7 +99,8 @@ export function TaskBoard({ tasks, onOpen, showProject = true }: { tasks: Task[]
             <header className="col-header t-caption-emphasis"><span className={`dot tdot-${st}`} aria-hidden />{TASK_STATUS[st].label}<span className="muted">{col.length}</span></header>
             {col.slice(0, limit).map((t) => <TaskCard key={t.id} task={t} ix={ix} onOpen={onOpen} showProject={showProject} drag={dragProps(t.id)} />)}
             {col.length > limit && <button type="button" className="link-button t-caption col-more" onClick={() => setAll(new Set([...all, st]))}>+ {col.length - limit} more</button>}
-            {!col.length && <p className="t-caption muted col-empty">Nothing here</p>}
+            {!col.length && !newTask && <p className="t-caption muted col-empty">Nothing here</p>}
+            {newTask && <NewTaskRow defaults={{ ...newTask, status: st }} />}
           </section>
         );
       })}
@@ -163,7 +184,11 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
             <span aria-hidden>→</span>
             <input type="date" className="input" value={live.due_end ?? ''} aria-label="Due" onChange={(e) => updateTask(live.id, { due_end: e.target.value || null })} />
           </dd>
-          {live.phase && <><dt>Phase</dt><dd className="t-body">{live.phase}</dd></>}
+          <dt>Phase</dt><dd>
+            <input className="input input-plain" list="phase-options" defaultValue={live.phase ?? ''} key={live.id} placeholder="—" aria-label="Phase"
+              onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== live.phase) updateTask(live.id, { phase: v }); }} />
+            <datalist id="phase-options">{[...new Set(ws.tasks.filter((t) => t.project_id === live.project_id && t.phase).map((t) => t.phase!))].map((ph) => <option key={ph} value={ph} />)}</datalist>
+          </dd>
         </dl>
         <label className="field"><span className="t-caption-emphasis">Notes</span>
           <textarea className="input" rows={8} value={notes} onChange={(e) => setNotes(e.target.value)}

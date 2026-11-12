@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
-import type { LibraryItem, Person, Product, Project, Sprint, Task, TaskStatus } from './types';
+import type { LibraryItem, Person, Product, Project, ProjectRole, Sprint, Task, TaskStatus } from './types';
 
 /**
  * One shared copy of the live workspace (current projects, their tasks, sprints, people, library).
@@ -9,7 +9,7 @@ import type { LibraryItem, Person, Product, Project, Sprint, Task, TaskStatus } 
  */
 
 interface Link { project_id: string; product_id: string }
-interface Role { project_id: string; person_id: string; role: 'lead' | 'support' }
+interface Role { project_id: string; person_id: string; role: ProjectRole }
 interface PS { project_id: string; sprint_id: string }
 interface TA { task_id: string; person_id: string }
 
@@ -55,7 +55,7 @@ async function loadWorkspace(): Promise<Workspace> {
   const [people, products, sprints, projects, tasks, library, projectProducts, projectPeople, projectSprints, taskAssignees] =
     await Promise.all([
       fetchAll<Person>('people', '*'),
-      fetchAll<Product>('products', 'id,name,emoji,sort_order', (q) => q.order('sort_order')),
+      fetchAll<Product>('products', '*', (q) => q.order('sort_order')),
       fetchAll<Sprint>('sprints', 'id,year,number,suffix,kind,name,starts_on,ends_on,status,closed_at', (q) => q.order('starts_on')),
       fetchAll<Project>('projects', PROJECT_COLS, (q) => q.eq('is_archived', false).order('name')),
       fetchAll<Task>('tasks', TASK_COLS, (q) => q.eq('is_archived', false).order('due_end', { ascending: true, nullsFirst: false })),
@@ -82,7 +82,7 @@ interface DataApi {
   updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
   createProject: (p: NewProject) => Promise<string | null>;
   setProjectProduct: (projectId: string, productId: string | null) => Promise<void>;
-  setProjectPeople: (projectId: string, role: 'lead' | 'support', personIds: string[]) => Promise<void>;
+  setProjectPeople: (projectId: string, role: ProjectRole, personIds: string[]) => Promise<void>;
   addProjectSprint: (projectId: string, sprintId: string) => Promise<void>;
   removeProjectSprint: (projectId: string, sprintId: string) => Promise<void>;
   closeSprint: (sprintId: string, mode: 'move' | 'keep') => Promise<{ moved_tasks: number; next_up_tasks: number; next: string } | null>;
@@ -284,7 +284,7 @@ export function buildIndex(ws: Workspace) {
     const first = productsByProject.get(p.id)?.[0];
     return first ? product.get(first.product_id) ?? null : null;
   };
-  const people = (p: Project, role: 'lead' | 'support') =>
+  const people = (p: Project, role: ProjectRole) =>
     (rolesByProject.get(p.id) ?? []).filter((r) => r.role === role).map((r) => person.get(r.person_id)).filter(Boolean) as Person[];
   const assignees = (t: Task) => (assigneesByTask.get(t.id) ?? []).map((a) => person.get(a.person_id)).filter(Boolean) as Person[];
   const projectSprints = (p: Project) =>
@@ -298,7 +298,12 @@ export function buildIndex(ws: Workspace) {
     return { total, done, open: total - done, pct: total ? Math.round((done / total) * 100) : 0 };
   };
 
+  /** Organize: where new and uncategorized projects wait. */
+  const holding = ws.products.find((p) => p.kind === 'holding') ?? ws.products.find((p) => p.name === 'Organize') ?? null;
+  const designers = ws.people.filter((p) => p.is_designer);
+
   return {
+    holding, designers,
     person, product, sprint, project, productOf, people, assignees, projectSprints, tasksOf, tasksIn, progress,
     tasksByProject, assigneesByTask,
   };

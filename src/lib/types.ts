@@ -2,8 +2,10 @@ export type ProjectStatus = 'not_started' | 'in_progress' | 'paused' | 'done' | 
 export type TaskStatus = 'not_started' | 'next_up' | 'in_progress' | 'design_ready' | 'done' | 'archived';
 export type Priority = 'low' | 'medium' | 'high';
 
-export interface Person { id: string; name: string; email: string | null; active?: boolean }
-export interface Product { id: string; name: string; emoji: string | null; sort_order: number }
+export interface Person { id: string; name: string; email: string | null; active?: boolean; is_designer?: boolean }
+export type ProjectRole = 'lead' | 'support' | 'owner';
+/** kind: 'product' = a real product; 'holding' = Organize (uncategorized); 'team' = HR Stuffs (Team sidebar). */
+export interface Product { id: string; name: string; emoji: string | null; sort_order: number; kind?: 'product' | 'holding' | 'team' }
 
 export interface Sprint {
   id: string;

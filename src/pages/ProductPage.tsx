@@ -15,15 +15,16 @@ const STATUS_ORDER: ProjectStatus[] = ['in_progress', 'not_started', 'waiting_fo
 const statusOptions = STATUS_ORDER.map((s) => ({ value: s, ...PROJECT_STATUS[s] }));
 
 /** One product: every one of its projects, grouped by sprint or by progress. */
-export function ProductPage() {
-  const { id } = useParams();
+export function ProductPage({ productId, crumb }: { productId?: string; crumb?: { to: string; label: string } } = {}) {
+  const params = useParams();
+  const id = productId ?? params.id;
   const { ready, ws, updateProject } = useData();
   const ix = useIndex();
   const [view, setView] = usePref<View>('product.view', 'sprint');
   const [closed, setClosed] = useState<Set<string>>(new Set());
   if (!ready) return <Loading />;
   const product = ws.products.find((p) => p.id === id);
-  if (!product) return <div className="page"><p className="t-body">Product not found. <Link to="/products">Back to Products</Link></p></div>;
+  if (!product) return <div className="page"><p className="t-body">Nothing here yet. <Link to="/products">Back to Products</Link></p></div>;
 
   const today = todayISO();
   const projects = ws.projects.filter((p) => ix.productOf(p)?.id === product.id);
@@ -66,7 +67,7 @@ export function ProductPage() {
   return (
     <div className="page">
       <div className="doc-top t-caption">
-        <nav className="crumbs" aria-label="Breadcrumb"><Link to="/products">📦 Products</Link><span aria-hidden>/</span><span>{product.emoji} {product.name}</span></nav>
+        <nav className="crumbs" aria-label="Breadcrumb"><Link to={crumb?.to ?? '/products'}>{crumb?.label ?? '📦 Products'}</Link><span aria-hidden>/</span><span>{product.emoji} {product.name}</span></nav>
       </div>
       <header className="page-header">
         <span className="page-emoji" aria-hidden>{product.emoji ?? '📦'}</span>

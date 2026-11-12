@@ -74,7 +74,7 @@ export function SprintPage() {
       {view === 'project' && <ByProject tasks={tasks} ix={ix} sprint={s} onOpen={setOpen} />}
       {view === 'status' && <>
         <p className="t-caption muted">Next Up tasks are planned for the next sprint. When {s.name} closes they move there as Not started.</p>
-        <TaskBoard tasks={tasks} onOpen={setOpen} />
+        <TaskBoard tasks={tasks} onOpen={setOpen} newTask={s.status !== 'closed' ? { sprint_id: s.id } : undefined} />
       </>}
       {view === 'assignee' && <ByAssignee tasks={tasks} ix={ix} people={ws.people} sprint={s} />}
 

@@ -38,14 +38,15 @@ export function Settings() {
 
       <section className="settings-section">
         <h2 className="t-title-subsection">Team</h2>
-        <p className="t-caption muted">Who shows up when you pick assignees, leads and support. Turning someone off keeps their past work.</p>
-        <div className="check-list team-list">
+        <p className="t-caption muted">On the team: shows up in the pickers (turning someone off keeps their past work). Designer: can be a project’s lead or support; everyone else can be a project owner.</p>
+        <div className="team-list" role="table">
+          <div className="team-row t-caption muted" role="row"><span>Person</span><span>On the team</span><span>Designer</span></div>
           {people.map((p) => (
-            <label key={p.id} className="t-body">
-              <input type="checkbox" checked={p.active !== false} onChange={(e) => updatePerson(p.id, { active: e.target.checked })} />
-              <Avatar name={p.name} size={20} />
-              <span className={p.active === false ? 'muted' : ''}>{p.name}</span>
-            </label>
+            <div key={p.id} className="team-row t-body" role="row">
+              <span className="people"><Avatar name={p.name} size={20} /><span className={p.active === false ? 'muted' : ''}>{p.name}</span></span>
+              <input type="checkbox" aria-label={`${p.name} is on the team`} checked={p.active !== false} onChange={(e) => updatePerson(p.id, { active: e.target.checked })} />
+              <input type="checkbox" aria-label={`${p.name} is a designer`} checked={!!p.is_designer} onChange={(e) => updatePerson(p.id, { is_designer: e.target.checked })} />
+            </div>
           ))}
         </div>
       </section>

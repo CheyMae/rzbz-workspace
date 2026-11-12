@@ -118,7 +118,9 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 }
 .settings-row > div { flex: 1; }
 .settings-section { display: flex; flex-direction: column; gap: var(--scale-100); max-width: 560px; }
-.team-list { padding: var(--scale-150) var(--scale-200); border: var(--border-sm) solid var(--border-default); border-radius: var(--radius-md); gap: var(--scale-100); }
+.team-row { display: grid; grid-template-columns: 1fr 96px 80px; align-items: center; gap: var(--scale-100); }
+.team-row input { justify-self: start; accent-color: var(--surface-action); }
+.team-list { display: flex; flex-direction: column; padding: var(--scale-150) var(--scale-200); border: var(--border-sm) solid var(--border-default); border-radius: var(--radius-md); gap: var(--scale-100); }
 
 /* ======================================================================
    Workspace screens (Figma Key Screens 02-11)
@@ -258,6 +260,10 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .th { color: var(--text-secondary); min-height: 32px; }
 .cols-projects { grid-template-columns: 2.4fr 1.1fr 0.8fr 1fr 1fr 1.1fr 28px; }
 .cols-tasks { grid-template-columns: 20px 2.6fr 1fr 0.8fr 1.1fr 1fr; }
+.cols-tasks.has-sprint { grid-template-columns: 20px 2.4fr 1fr 1fr 0.8fr 1.1fr 0.9fr; }
+.cols-tasks.has-phase.has-sprint { grid-template-columns: 20px 2.1fr 1fr 1fr 1fr 0.8fr 1fr 0.9fr; }
+.board-col .new-row { padding: 0; }
+.board-col .show-more { padding: var(--scale-50); }
 .cols-sprints { grid-template-columns: 2fr 2fr 0.6fr 0.6fr 1.6fr; }
 .cols-library { grid-template-columns: 2.4fr 1.2fr 1.1fr 1.1fr 0.9fr; }
 .cols-archive { grid-template-columns: 3fr 1fr 100px; }

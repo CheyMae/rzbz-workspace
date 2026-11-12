@@ -11,6 +11,7 @@ import { SprintPage } from './pages/SprintPage';
 import { Library } from './pages/Library';
 import { Products } from './pages/Products';
 import { ProductPage } from './pages/ProductPage';
+import { HrStuff } from './pages/HrStuff';
 import { Archive } from './pages/Archive';
 import { Welcome } from './pages/Welcome';
 import { Placeholder } from './pages/Placeholder';
@@ -72,7 +73,7 @@ function Shell() {
           <Route path="library" element={<Library />} />
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductPage />} />
-          <Route path="hr" element={<Placeholder item={byPath['/hr']} />} />
+          <Route path="hr" element={<HrStuff />} />
           <Route path="hiring" element={<Placeholder item={byPath['/hiring']} />} />
           <Route path="analytics" element={<Placeholder item={byPath['/analytics']} />} />
           <Route path="archive" element={<Archive />} />
