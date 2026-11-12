@@ -1,7 +1,17 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { AppShell } from './components/AppShell';
+import { DataProvider } from './lib/data';
 import { Home } from './pages/Home';
+import { Projects } from './pages/Projects';
+import { ProjectPage } from './pages/ProjectPage';
+import { Sprints } from './pages/Sprints';
+import { SprintPage } from './pages/SprintPage';
+import { Library } from './pages/Library';
+import { Products } from './pages/Products';
+import { Archive } from './pages/Archive';
+import { Welcome } from './pages/Welcome';
 import { Placeholder } from './pages/Placeholder';
 import { SignIn } from './pages/SignIn';
 import { SetPassword } from './pages/SetPassword';
@@ -14,34 +24,57 @@ const byPath = Object.fromEntries(allNav.map((n) => [n.path, n]));
 // Local design preview only: /?shell shows the signed-in layout without a database.
 // import.meta.env.DEV is false in the published build, so this never ships.
 const shellPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('shell');
+const signInPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('signin');
+
+/** After this many days away, the first page you see is the Welcome back recap. */
+const RECAP_AFTER_DAYS = 3;
 
 function Gate() {
   const { loading, session, membership, needsPassword } = useAuth();
-  if (shellPreview) return <Shell />;
+  if (signInPreview) return <SignIn />;
+  if (shellPreview) return <DataProvider><Shell /></DataProvider>;
   if (loading || (session && membership === 'unknown')) return <div className="loading" aria-busy="true" />;
   if (!session) return <SignIn />;
   if (needsPassword) return <SetPassword />;
   if (membership === 'not-member') return <NoAccess />;
-  return <Shell />;
+  return <DataProvider><Shell /></DataProvider>;
+}
+
+function RecapRedirect() {
+  const { previousVisit } = useAuth();
+  const nav = useNavigate();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !previousVisit) return;
+    done.current = true;
+    if (Date.now() - previousVisit.getTime() > RECAP_AFTER_DAYS * 86_400_000) nav('/welcome');
+  }, [previousVisit]);
+  return null;
 }
 
 function Shell() {
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route index element={<Home />} />
-        <Route path="projects" element={<Placeholder item={byPath['/projects']} table="projects" filter={{ is_archived: false }} />} />
-        <Route path="sprints" element={<Placeholder item={byPath['/sprints']} table="sprints" />} />
-        <Route path="library" element={<Placeholder item={byPath['/library']} table="library_items" />} />
-        <Route path="products" element={<Placeholder item={byPath['/products']} table="products" />} />
-        <Route path="hr" element={<Placeholder item={byPath['/hr']} />} />
-        <Route path="hiring" element={<Placeholder item={byPath['/hiring']} />} />
-        <Route path="analytics" element={<Placeholder item={byPath['/analytics']} />} />
-        <Route path="archive" element={<Placeholder item={byPath['/archive']} table="tasks" filter={{ is_archived: true }} />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+    <>
+      <RecapRedirect />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Home />} />
+          <Route path="welcome" element={<Welcome />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:id" element={<ProjectPage />} />
+          <Route path="sprints" element={<Sprints />} />
+          <Route path="sprints/:id" element={<SprintPage />} />
+          <Route path="library" element={<Library />} />
+          <Route path="products" element={<Products />} />
+          <Route path="hr" element={<Placeholder item={byPath['/hr']} />} />
+          <Route path="hiring" element={<Placeholder item={byPath['/hiring']} />} />
+          <Route path="analytics" element={<Placeholder item={byPath['/analytics']} />} />
+          <Route path="archive" element={<Archive />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

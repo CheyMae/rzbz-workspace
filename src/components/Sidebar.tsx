@@ -1,19 +1,26 @@
 import { NavLink } from 'react-router-dom';
 import { ChevronRight, Search } from 'lucide-react';
 import { mainNav, teamNav, footerNav, type NavItem } from '../nav';
+import { usePinned } from '../lib/prefs';
+import { useData, useIndex } from '../lib/data';
 
-function Item({ item }: { item: NavItem }) {
+function Item({ to, emoji, label, end }: { to: string; emoji: string; label: string; end?: boolean }) {
   return (
-    <NavLink to={item.path} end={item.path === '/'} className={({ isActive }) => `nav-item${isActive ? ' is-selected' : ''}`}>
+    <NavLink to={to} end={end} className={({ isActive }) => `nav-item${isActive ? ' is-selected' : ''}`}>
       <ChevronRight size={14} className="nav-disclosure" aria-hidden />
-      <span className="nav-emoji" aria-hidden>{item.emoji}</span>
-      <span className="nav-label">{item.label}</span>
+      <span className="nav-emoji" aria-hidden>{emoji}</span>
+      <span className="nav-label">{label}</span>
     </NavLink>
   );
 }
+const navItem = (i: NavItem) => <Item key={i.path} to={i.path} emoji={i.emoji} label={i.label} end={i.path === '/'} />;
 
-/** Mirrors the Figma "App/Sidebar" component. */
+/** Mirrors the Figma "App/Sidebar" component: main, Team, Pinned, then Archive and Settings at the bottom. */
 export function Sidebar() {
+  const pins = usePinned();
+  const { ws } = useData();
+  const ix = useIndex();
+  const pinned = pins.ids.map((id) => ws.projects.find((p) => p.id === id)).filter(Boolean);
   return (
     <nav className="sidebar" aria-label="Workspace">
       <div className="workspace">
@@ -26,11 +33,15 @@ export function Sidebar() {
         <kbd className="t-caption">⌘K</kbd>
       </button>
       <div className="nav-gap" />
-      {mainNav.map((i) => <Item key={i.path} item={i} />)}
+      {mainNav.map(navItem)}
       <div className="nav-group-label t-caption-emphasis">Team</div>
-      {teamNav.map((i) => <Item key={i.path} item={i} />)}
+      {teamNav.map(navItem)}
+      {pinned.length > 0 && <>
+        <div className="nav-group-label t-caption-emphasis">Pinned</div>
+        {pinned.map((p) => <Item key={p!.id} to={`/projects/${p!.id}`} emoji={p!.emoji ?? ix.productOf(p!)?.emoji ?? '📄'} label={p!.name} />)}
+      </>}
       <div className="nav-spacer" />
-      {footerNav.map((i) => <Item key={i.path} item={i} />)}
+      {footerNav.map(navItem)}
     </nav>
   );
 }

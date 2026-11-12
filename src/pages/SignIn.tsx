@@ -1,13 +1,19 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '../components/Button';
 import { TextInput } from '../components/TextInput';
 import { supabase, isConfigured } from '../lib/supabase';
 
-export function AuthCard({ children }: { children: React.ReactNode }) {
+/** Morning scene from 6 am to 6 pm on the viewer's clock, night scene otherwise (Figma 01 Morning / Night). */
+export const isDaytime = (d = new Date()) => d.getHours() >= 6 && d.getHours() < 18;
+
+/** Figma 01 · Sign in: pixel scene behind, card on the left. Also used by Set password / No access. */
+export function AuthCard({ children, title }: { children: ReactNode; title?: ReactNode }) {
+  const scene = isDaytime() ? 'morning' : 'night';
   return (
-    <div className="auth-page">
+    <div className={`auth-page scene-${scene}`} style={{ backgroundImage: `url(${import.meta.env.BASE_URL}scenes/${scene}.png)` }}>
       <div className="auth-card">
-        <span className="auth-emoji" aria-hidden>🗂️</span>
+        <div className="auth-brand t-body-emphasis"><span aria-hidden>🎨</span> RZBZ Design Team</div>
+        {title}
         {children}
       </div>
     </div>
@@ -37,9 +43,8 @@ export function SignIn() {
   }
 
   return (
-    <AuthCard>
-      <h1 className="t-title-section">RZBZ Design Team</h1>
-      <p className="t-body muted">This workspace is private. Sign in to see projects, sprints and the library.</p>
+    <AuthCard title={<h1 className="auth-title">Hey, partner!<br /><span className="auth-title-accent">We missed you.</span></h1>}>
+      <p className="auth-note t-caption">This workspace is private. Sign in to see projects, sprints and the library.</p>
       {!isConfigured ? (
         <div className="callout callout-yellow t-body">
           <span aria-hidden>🔌</span>
@@ -47,7 +52,7 @@ export function SignIn() {
         </div>
       ) : (
         <form className="auth-form" onSubmit={submit}>
-          <TextInput label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextInput label="Email" type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
           <TextInput label="Password" type="password" autoComplete="current-password" required value={password}
             onChange={(e) => setPassword(e.target.value)} error={error ?? undefined} />
           <Button type="submit" size="md" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
@@ -55,7 +60,7 @@ export function SignIn() {
           {resetSent && <p className="t-caption muted">If that email has access, a reset link is on its way.</p>}
         </form>
       )}
-      <p className="t-caption muted">Access is by invitation only.</p>
+      <p className="t-caption muted">Access is invite-only.</p>
     </AuthCard>
   );
 }
