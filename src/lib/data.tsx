@@ -88,6 +88,8 @@ interface DataApi {
   closeSprint: (sprintId: string, mode: 'move' | 'keep') => Promise<{ moved_tasks: number; next_up_tasks: number; next: string } | null>;
   createLibraryItem: (item: Partial<LibraryItem> & { name: string; section: string }) => Promise<void>;
   updatePerson: (id: string, patch: Partial<Person>) => Promise<void>;
+  /** Adds someone to the team list (not a login; sign-in access is separate). */
+  createPerson: (name: string, isDesigner: boolean) => Promise<boolean>;
   /** Permanent. For mistakes; archiving is the normal way to put things away. */
   deleteTask: (id: string) => Promise<void>;
   /** Permanent. Deletes the project and every task in it. */
@@ -209,6 +211,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       (w) => ({ ...w, people: w.people.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
       () => supabase!.from('people').update(patch).eq('id', id),
     ),
+
+    createPerson: async (name, isDesigner) => {
+      const { error } = await supabase!.from('people').insert({ name, is_designer: isDesigner, active: true });
+      if (error) { setError(error.code === '23505' ? `${name} is already on the list` : error.message); return false; }
+      await reload();
+      return true;
+    },
 
     deleteTask: (id) => save(
       (w) => ({ ...w, tasks: w.tasks.filter((t) => t.id !== id), taskAssignees: w.taskAssignees.filter((a) => a.task_id !== id) }),

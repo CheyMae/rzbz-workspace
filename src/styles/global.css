@@ -120,6 +120,9 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .settings-section { display: flex; flex-direction: column; gap: var(--scale-100); max-width: 560px; }
 .team-row { display: grid; grid-template-columns: 1fr 96px 80px; align-items: center; gap: var(--scale-100); }
 .team-row input { justify-self: start; accent-color: var(--surface-action); }
+.team-add { padding-top: var(--scale-100); border-top: var(--border-sm) solid var(--border-default); }
+.team-add-name { display: flex; gap: var(--scale-100); min-width: 0; padding-right: var(--scale-200); }
+.team-add-name .input { flex: 1; min-width: 0; padding: var(--scale-50) var(--scale-100); }
 .team-list { display: flex; flex-direction: column; padding: var(--scale-150) var(--scale-200); border: var(--border-sm) solid var(--border-default); border-radius: var(--radius-md); gap: var(--scale-100); }
 
 /* ======================================================================

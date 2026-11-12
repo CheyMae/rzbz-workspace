@@ -1,4 +1,5 @@
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { useState } from 'react';
+import { Monitor, Moon, Plus, Sun } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
@@ -9,7 +10,9 @@ import { useTheme, type Theme } from '../lib/theme';
 
 export function Settings() {
   const { session, signOut } = useAuth();
-  const { ws, updatePerson } = useData();
+  const { ws, updatePerson, createPerson, error } = useData();
+  const [newName, setNewName] = useState('');
+  const [newDesigner, setNewDesigner] = useState(false);
   const [theme, setTheme] = useTheme();
   const email = session?.user.email ?? '';
   const people = ws.people.slice().sort((a, b) => Number(b.active !== false) - Number(a.active !== false) || a.name.localeCompare(b.name));
@@ -48,6 +51,19 @@ export function Settings() {
               <input type="checkbox" aria-label={`${p.name} is a designer`} checked={!!p.is_designer} onChange={(e) => updatePerson(p.id, { is_designer: e.target.checked })} />
             </div>
           ))}
+          <form className="team-row team-add" onSubmit={async (e) => {
+            e.preventDefault();
+            const n = newName.trim(); if (!n) return;
+            if (await createPerson(n, newDesigner)) { setNewName(''); setNewDesigner(false); }
+          }}>
+            <span className="team-add-name">
+              <input className="input" placeholder="Add a person (full name)" value={newName} aria-label="New person's name" onChange={(e) => setNewName(e.target.value)} />
+              <Button type="submit" variant="secondary" icon={<Plus size={14} />} disabled={!newName.trim()}>Add</Button>
+            </span>
+            <span className="t-caption muted">Designer?</span>
+            <input type="checkbox" aria-label="New person is a designer" checked={newDesigner} onChange={(e) => setNewDesigner(e.target.checked)} />
+          </form>
+          {error && <p className="t-caption text-error">{error}</p>}
         </div>
       </section>
     </div>
