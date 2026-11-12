@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
@@ -132,6 +132,12 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
   const live = ws.tasks.find((t) => t.id === task.id) ?? task;
   const [title, setTitle] = useState(live.title);
   const [notes, setNotes] = useState(live.notes ?? '');
+  // The task name box grows with its text, so long names are never cut off.
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = titleRef.current; if (!el) return;
+    el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
   useEffect(() => { setTitle(live.title); setNotes(live.notes ?? ''); }, [live.id]);
   useEffect(() => {
     // Escape closes the panel, unless the delete confirmation is open (it closes first).
@@ -150,7 +156,7 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
           {project ? <Link to={`/projects/${project.id}`} className="t-caption muted plain-link" onClick={onClose}>{project.name}</Link> : <span className="t-caption muted">No project</span>}
           <button type="button" className="icon-button" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
-        <textarea className="title-input t-title-section" rows={2} value={title} aria-label="Task name"
+        <textarea ref={titleRef} className="title-input t-title-section drawer-title" rows={1} value={title} aria-label="Task name"
           onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== live.title && updateTask(live.id, { title: title.trim() })} />
         <dl className="props">
           <dt>Status</dt><dd><TagSelect label="Status" value={live.status} options={statusOptions} onChange={(v) => v && updateTask(live.id, { status: v })} /></dd>
