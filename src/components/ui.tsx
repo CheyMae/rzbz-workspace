@@ -110,8 +110,8 @@ export function Menu({ trigger, children, align = 'right' }: {
   );
 }
 
-export function MenuItem({ icon, children, onClick }: { icon?: ReactNode; children: ReactNode; onClick: () => void }) {
-  return <button type="button" role="menuitem" className="menu-item t-caption" onClick={onClick}>{icon}{children}</button>;
+export function MenuItem({ icon, children, onClick, danger }: { icon?: ReactNode; children: ReactNode; onClick: () => void; danger?: boolean }) {
+  return <button type="button" role="menuitem" className={`menu-item t-caption${danger ? ' menu-item-danger' : ''}`} onClick={onClick}>{icon}{children}</button>;
 }
 
 export function Dialog({ title, onClose, children, footer, wide }: {
@@ -166,6 +166,21 @@ export function DropdownIcon({ open, size = 20 }: { open: boolean; size?: number
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden className="dropdown-icon" style={{ transform: open ? undefined : 'rotate(-90deg)' }}>
       <path fill="currentColor" d="M8.71 11.71l2.59 2.59a1 1 0 0 0 1.41 0l2.59-2.59A1 1 0 0 0 14.59 10H9.41a1 1 0 0 0-.7 1.71z" />
     </svg>
+  );
+}
+
+/** "Are you sure?" for permanent deletes. */
+export function ConfirmDelete({ title, children, confirmLabel, onConfirm, onClose }: {
+  title: string; children: ReactNode; confirmLabel: string; onConfirm: () => void; onClose: () => void;
+}) {
+  return (
+    <Dialog title={title} onClose={onClose} footer={<>
+      <button type="button" className="btn btn-secondary btn-md" onClick={onClose} autoFocus>Cancel</button>
+      <button type="button" className="btn btn-danger btn-md" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</button>
+    </>}>
+      <p className="t-body">{children}</p>
+      <p className="t-caption muted">This can’t be undone.</p>
+    </Dialog>
   );
 }
 

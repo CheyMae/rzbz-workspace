@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Calendar, CheckSquare, Clock, Pin, Plus, Tag as TagIcon, Type, User, X } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Archive, Calendar, CheckSquare, Clock, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
+import { DeleteProject } from './Projects';
 import { Avatar } from '../components/Avatar';
 import { GroupHeader, Loading, Menu, MenuItem, Tag, TagSelect, ViewTabs } from '../components/ui';
 import { NewTaskRow, TaskBoard, TaskDrawer, TaskRow, TaskTableHead, priorityOptions } from '../components/tasks';
@@ -18,7 +19,9 @@ type View = 'sprint' | 'board' | 'phase';
 /** Figma 05 · Project page. Sprints are a property here, with Add sprint. */
 export function ProjectPage() {
   const { id } = useParams();
-  const { ready, ws, updateProject, setProjectProduct, setProjectPeople, addProjectSprint, removeProjectSprint } = useData();
+  const { ready, ws, updateProject, setProjectProduct, setProjectPeople, addProjectSprint, removeProjectSprint, deleteProject } = useData();
+  const nav = useNavigate();
+  const [deleting, setDeleting] = useState(false);
   const ix = useIndex();
   const pins = usePinned();
   const [view, setView] = usePref<View>('project.view', 'sprint');
@@ -63,6 +66,12 @@ export function ProjectPage() {
         <button type="button" className={`btn btn-${pinned ? 'secondary' : 'ghost'}`} onClick={() => pins.toggle(p.id)}>
           <Pin size={14} /> {pinned ? 'Pinned' : 'Pin'}
         </button>
+        <Menu trigger={(_, t) => <button type="button" className="icon-button" aria-label="More for this project" onClick={t}><MoreHorizontal size={16} /></button>}>
+          {(close) => <>
+            <MenuItem icon={<Archive size={14} />} onClick={() => { close(); updateProject(p.id, { is_archived: true }); nav('/projects'); }}>Move to archive</MenuItem>
+            <MenuItem icon={<Trash2 size={14} />} danger onClick={() => { close(); setDeleting(true); }}>Delete project</MenuItem>
+          </>}
+        </Menu>
       </div>
 
       <header className="page-header">
@@ -171,6 +180,8 @@ export function ProjectPage() {
         )}
       </section>
       {open && <TaskDrawer task={open} onClose={() => setOpen(null)} />}
+      {deleting && <DeleteProject project={p} taskCount={tasks.length} onClose={() => setDeleting(false)}
+        onConfirm={() => { if (pinned) pins.toggle(p.id); deleteProject(p.id); nav('/projects'); }} />}
     </div>
   );
 }

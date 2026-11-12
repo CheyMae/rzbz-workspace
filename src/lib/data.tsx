@@ -88,6 +88,10 @@ interface DataApi {
   closeSprint: (sprintId: string, mode: 'move' | 'keep') => Promise<{ moved_tasks: number; next_up_tasks: number; next: string } | null>;
   createLibraryItem: (item: Partial<LibraryItem> & { name: string; section: string }) => Promise<void>;
   updatePerson: (id: string, patch: Partial<Person>) => Promise<void>;
+  /** Permanent. For mistakes; archiving is the normal way to put things away. */
+  deleteTask: (id: string) => Promise<void>;
+  /** Permanent. Deletes the project and every task in it. */
+  deleteProject: (id: string) => Promise<void>;
 }
 
 const Ctx = createContext<DataApi | null>(null);
@@ -204,6 +208,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updatePerson: (id, patch) => save(
       (w) => ({ ...w, people: w.people.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
       () => supabase!.from('people').update(patch).eq('id', id),
+    ),
+
+    deleteTask: (id) => save(
+      (w) => ({ ...w, tasks: w.tasks.filter((t) => t.id !== id), taskAssignees: w.taskAssignees.filter((a) => a.task_id !== id) }),
+      () => supabase!.from('tasks').delete().eq('id', id),
+    ),
+
+    deleteProject: (id) => save(
+      (w) => {
+        const gone = new Set(w.tasks.filter((t) => t.project_id === id).map((t) => t.id));
+        return {
+          ...w,
+          projects: w.projects.filter((p) => p.id !== id),
+          tasks: w.tasks.filter((t) => !gone.has(t.id)),
+          taskAssignees: w.taskAssignees.filter((a) => !gone.has(a.task_id)),
+          projectPeople: w.projectPeople.filter((r) => r.project_id !== id),
+          projectSprints: w.projectSprints.filter((l) => l.project_id !== id),
+          projectProducts: w.projectProducts.filter((l) => l.project_id !== id),
+        };
+      },
+      async () => {
+        // Tasks first: the database would otherwise keep them with no project.
+        const t = await supabase!.from('tasks').delete().eq('project_id', id);
+        if (t.error) return t;
+        return supabase!.from('projects').delete().eq('id', id);
+      },
     ),
 
     createLibraryItem: async (item) => {

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ExternalLink, MoreHorizontal, Pin, Plus, Search } from 'lucide-react';
+import { Archive, ExternalLink, MoreHorizontal, Pin, Plus, Search, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
-import { GroupHeader, Loading, Menu, MenuItem, People, Progress, TagSelect } from '../components/ui';
+import { ConfirmDelete, GroupHeader, Loading, Menu, MenuItem, People, Progress, TagSelect } from '../components/ui';
 import { priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
 import { PROJECT_STATUS, fmtDate } from '../lib/format';
@@ -19,7 +19,8 @@ const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_fee
 
 /** Figma 04 · Projects: every current project, grouped by product. */
 export function Projects() {
-  const { ready, ws, updateProject, createProject } = useData();
+  const { ready, ws, updateProject, createProject, deleteProject } = useData();
+  const [deleting, setDeleting] = useState<Project | null>(null);
   const ix = useIndex();
   const nav = useNavigate();
   const pins = usePinned();
@@ -100,6 +101,7 @@ export function Projects() {
                           <MenuItem icon={<Pin size={14} />} onClick={() => { pins.toggle(p.id); close(); }}>{pins.isPinned(p.id) ? 'Unpin from sidebar' : 'Pin to sidebar'}</MenuItem>
                           <MenuItem icon={<ExternalLink size={14} />} onClick={() => nav(`/projects/${p.id}`)}>Open</MenuItem>
                           <MenuItem icon={<Archive size={14} />} onClick={() => { updateProject(p.id, { is_archived: true }); close(); }}>Move to archive</MenuItem>
+                          <MenuItem icon={<Trash2 size={14} />} danger onClick={() => { setDeleting(p); close(); }}>Delete project</MenuItem>
                         </>}
                       </Menu>
                     </div>
@@ -116,6 +118,19 @@ export function Projects() {
         })}
         {!rows.length && <p className="t-body muted empty-row">No projects match.</p>}
       </div>
+      {deleting && <DeleteProject project={deleting} taskCount={ix.tasksOf(deleting).length} onClose={() => setDeleting(null)}
+        onConfirm={() => { pins.isPinned(deleting.id) && pins.toggle(deleting.id); deleteProject(deleting.id); }} />}
     </div>
+  );
+}
+
+/** Confirmation for deleting a project, shared with the project page. */
+export function DeleteProject({ project, taskCount, onConfirm, onClose }: { project: Project; taskCount: number; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <ConfirmDelete title="Delete this project?" confirmLabel={taskCount ? `Delete project and ${taskCount} task${taskCount === 1 ? '' : 's'}` : 'Delete project'}
+      onConfirm={onConfirm} onClose={onClose}>
+      “{project.name}”{taskCount ? ` and its ${taskCount} task${taskCount === 1 ? '' : 's'}` : ''} will be removed everywhere.
+      To keep it but hide it, use Move to archive instead.
+    </ConfirmDelete>
   );
 }

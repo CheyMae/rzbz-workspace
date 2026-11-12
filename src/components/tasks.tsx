@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Check, Plus, X } from 'lucide-react';
+import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
-import { People, Tag, TagSelect, useBoardDrag } from './ui';
+import { ConfirmDelete, People, Tag, TagSelect, useBoardDrag } from './ui';
 import { useData, useIndex, type Index } from '../lib/data';
 import { PRIORITY, TASK_FLOW, TASK_STATUS, fmtDate, firstName } from '../lib/format';
 import type { Priority, Task, TaskStatus } from '../lib/types';
@@ -106,14 +106,16 @@ function TaskCard({ task, ix, onOpen, showProject, drag }: { task: Task; ix: Ind
 
 /** Side panel to edit one task. Text saves when you leave the field; everything else saves at once. */
 export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void }) {
-  const { ws, updateTask, setTaskAssignees } = useData();
+  const { ws, updateTask, setTaskAssignees, deleteTask } = useData();
+  const [confirming, setConfirming] = useState(false);
   const ix = useIndex();
   const live = ws.tasks.find((t) => t.id === task.id) ?? task;
   const [title, setTitle] = useState(live.title);
   const [notes, setNotes] = useState(live.notes ?? '');
   useEffect(() => { setTitle(live.title); setNotes(live.notes ?? ''); }, [live.id]);
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // Escape closes the panel, unless the delete confirmation is open (it closes first).
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.dialog')) onClose(); };
     document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k);
   }, [onClose]);
   const assigned = new Set(ix.assignees(live).map((p) => p.id));
@@ -168,7 +170,17 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
             onBlur={() => notes !== (live.notes ?? '') && updateTask(live.id, { notes: notes || null })} />
         </label>
         {live.summary && <p className="t-caption muted">{live.summary}</p>}
-        <div className="drawer-foot"><Button variant="secondary" onClick={onClose}>Done</Button></div>
+        <div className="drawer-foot">
+          <button type="button" className="btn btn-ghost btn-delete" onClick={() => setConfirming(true)}><Trash2 size={14} /> Delete task</button>
+          <span className="grow" />
+          <Button variant="secondary" onClick={onClose}>Done</Button>
+        </div>
+        {confirming && (
+          <ConfirmDelete title="Delete this task?" confirmLabel="Delete task" onClose={() => setConfirming(false)}
+            onConfirm={() => { deleteTask(live.id); onClose(); }}>
+            “{live.title}” will be removed from {project ? project.name : 'the workspace'} and every board.
+          </ConfirmDelete>
+        )}
       </aside>
     </div>
   );
