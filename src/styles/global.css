@@ -320,8 +320,16 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .drawer-top { display: flex; justify-content: space-between; align-items: center; }
 /* Nothing in the panel gets squeezed; the panel scrolls instead. */
 .drawer > * { flex-shrink: 0; }
-.drawer-title { overflow: hidden; padding: var(--scale-50) 0; line-height: 32px; }
-.drawer .plain-select { max-width: 100%; min-width: 0; }
+/* Auto-growing text box: the ::after copy of the text sizes the grid cell, the textarea fills it. */
+.grow-text { display: grid; min-width: 0; }
+.grow-text::after { content: attr(data-value) " "; white-space: pre-wrap; visibility: hidden; }
+.grow-text > textarea, .grow-text::after { grid-area: 1 / 1 / 2 / 2; font: inherit; line-height: 1.4; padding: var(--scale-50) 0; margin: 0; border: 0; overflow-wrap: anywhere; }
+.grow-text > textarea { overflow: hidden; resize: none; }
+.drawer { overflow-x: hidden; }
+.drawer .plain-select { width: 100%; max-width: 100%; min-width: 0; }
+.people-button .dropdown-icon { color: var(--icon-subtle); }
+.people-names { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.drawer .people-button { max-width: 100%; }
 .drawer .props dd { min-width: 0; }
 .drawer-foot { display: flex; justify-content: flex-end; }
 

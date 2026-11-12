@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
+import { PeoplePicker } from './PeoplePicker';
 import { Button } from './Button';
 import { ConfirmDelete, People, Tag, TagSelect, useBoardDrag } from './ui';
 import { useData, useIndex, type Index } from '../lib/data';
@@ -132,19 +133,12 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
   const live = ws.tasks.find((t) => t.id === task.id) ?? task;
   const [title, setTitle] = useState(live.title);
   const [notes, setNotes] = useState(live.notes ?? '');
-  // The task name box grows with its text, so long names are never cut off.
-  const titleRef = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const el = titleRef.current; if (!el) return;
-    el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`;
-  }, [title]);
   useEffect(() => { setTitle(live.title); setNotes(live.notes ?? ''); }, [live.id]);
   useEffect(() => {
     // Escape closes the panel, unless the delete confirmation is open (it closes first).
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.dialog')) onClose(); };
     document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k);
   }, [onClose]);
-  const assigned = new Set(ix.assignees(live).map((p) => p.id));
   const sprints = ws.sprints.filter((s) => s.kind === 'sprint' && (s.status !== 'closed' || s.id === live.sprint_id))
     .sort((a, b) => b.starts_on.localeCompare(a.starts_on));
   const project = live.project_id ? ix.project.get(live.project_id) : null;
@@ -156,8 +150,11 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
           {project ? <Link to={`/projects/${project.id}`} className="t-caption muted plain-link" onClick={onClose}>{project.name}</Link> : <span className="t-caption muted">No project</span>}
           <button type="button" className="icon-button" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
-        <textarea ref={titleRef} className="title-input t-title-section drawer-title" rows={1} value={title} aria-label="Task name"
-          onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== live.title && updateTask(live.id, { title: title.trim() })} />
+        {/* The name box grows with its text: an invisible copy of the text sets the height (pure CSS, no measuring). */}
+        <div className="grow-text t-title-section" data-value={title}>
+          <textarea className="title-input" rows={1} value={title} aria-label="Task name"
+            onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== live.title && updateTask(live.id, { title: title.trim() })} />
+        </div>
         <dl className="props">
           <dt>Status</dt><dd><TagSelect label="Status" value={live.status} options={statusOptions} onChange={(v) => v && updateTask(live.id, { status: v })} /></dd>
           <dt>Priority</dt><dd><TagSelect label="Priority" value={live.priority} options={priorityOptions} onChange={(v) => updateTask(live.id, { priority: v })} /></dd>
@@ -174,15 +171,8 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
               {ws.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </dd>
-          <dt>Assignees</dt><dd className="check-list">
-            {ws.people.filter((p) => p.active !== false || assigned.has(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
-              <label key={p.id} className="t-caption">
-                <input type="checkbox" checked={assigned.has(p.id)} onChange={(e) => {
-                  const next = new Set(assigned); e.target.checked ? next.add(p.id) : next.delete(p.id);
-                  setTaskAssignees(live.id, [...next]);
-                }} /> {p.name}
-              </label>
-            ))}
+          <dt>Assignees</dt><dd>
+            <PeoplePicker people={ws.people} selected={ix.assignees(live)} empty="No one yet" onChange={(ids) => setTaskAssignees(live.id, ids)} />
           </dd>
           <dt>Due</dt><dd className="date-pair">
             <input type="date" className="input" value={live.due_start ?? ''} aria-label="Start" onChange={(e) => updateTask(live.id, { due_start: e.target.value || null })} />

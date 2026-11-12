@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, Calendar, CheckSquare, Clock, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
 import { DeleteProject } from './Projects';
-import { Avatar } from '../components/Avatar';
+import { PeoplePicker } from '../components/PeoplePicker';
 import { GroupHeader, Loading, Menu, MenuItem, TagSelect, ViewTabs } from '../components/ui';
 import { NewTaskRow, TaskBoard, TaskDrawer, TaskRow, TaskTableHead, priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
-import { PROJECT_STATUS, firstName, fmtDate, plural } from '../lib/format';
+import { PROJECT_STATUS, fmtDate, plural } from '../lib/format';
 import { sprintLabel, todayISO } from '../lib/sprints';
 import { usePinned, usePref } from '../lib/prefs';
-import type { Person, ProjectStatus, Sprint, Task } from '../lib/types';
+import type { ProjectStatus, Sprint, Task } from '../lib/types';
 
 const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_feedback', 'done', 'canceled'] as ProjectStatus[])
   .map((s) => ({ value: s, ...PROJECT_STATUS[s] }));
@@ -185,29 +185,5 @@ export function ProjectPage() {
       {deleting && <DeleteProject project={p} taskCount={tasks.length} onClose={() => setDeleting(false)}
         onConfirm={() => { if (pinned) pins.toggle(p.id); deleteProject(p.id); nav('/projects'); }} />}
     </div>
-  );
-}
-
-function PeoplePicker({ people, selected, empty, onChange }: { people: Person[]; selected: Person[]; empty: string; onChange: (ids: string[]) => void }) {
-  const ids = new Set(selected.map((p) => p.id));
-  const choices = [...people.filter((p) => p.active !== false || ids.has(p.id)), ...selected.filter((s) => !people.some((p) => p.id === s.id))];
-  return (
-    <Menu align="left" trigger={(_, t) => (
-      <button type="button" className="people-button t-body" onClick={t}>
-        {selected.length ? <><Avatar name={selected[0].name} size={20} />{selected.map(firstName).join(', ')}</> : <span className="muted">{empty}</span>}
-      </button>
-    )}>
-      {() => (
-        <div className="check-list menu-list">
-          {choices.sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
-            <label key={p.id} className="t-caption">
-              <input type="checkbox" checked={ids.has(p.id)} onChange={(e) => {
-                const n = new Set(ids); e.target.checked ? n.add(p.id) : n.delete(p.id); onChange([...n]);
-              }} /> {p.name}
-            </label>
-          ))}
-        </div>
-      )}
-    </Menu>
   );
 }
