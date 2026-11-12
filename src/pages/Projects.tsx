@@ -107,11 +107,17 @@ export function Projects() {
                     </div>
                   );
                 })}
-                {list.length > 4 && (
+                {list.length > 4 && (key === 'none' ? (
                   <button type="button" className="show-more t-caption muted" onClick={() => setMore(toggle(more, key))}>
                     {more.has(key) ? 'Show fewer' : `Show ${list.length - 4} more`}
                   </button>
-                )}
+                ) : (
+                  // The rest of a product's projects live on its Product page (HR Stuff for the HR group).
+                  <Link className="show-more t-caption muted plain-link"
+                    to={ws.products.find((x) => x.id === key)?.kind === 'team' ? '/hr' : `/products/${key}`}>
+                    Show {list.length - 4} more in {g.name} →
+                  </Link>
+                ))}
               </>}
             </div>
           );
