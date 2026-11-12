@@ -53,7 +53,7 @@ PROJECT_STATUS = {"In Progress": "in_progress", "Paused": "paused", "Done": "don
                   "Not Started": "not_started", "Not started": "not_started", "Planning": "not_started",
                   "Waiting for Feedback": "waiting_for_feedback", "Canceled": "canceled"}
 TASK_STATUS = {"Not Started": "not_started", "Next Up": "next_up", "In Progress": "in_progress",
-               "Design Ready": "design_ready", "Done": "done", "Archived": "archived"}
+               "Design Ready": "done", "Done": "done", "Archived": "archived"}
 PRIORITY = {"High": "high", "Medium": "medium", "Low": "low"}
 
 problems = Counter()

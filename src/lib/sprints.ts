@@ -1,7 +1,11 @@
 import type { Sprint } from './types';
 
+// Local preview only: /?shell&today=YYYY-MM-DD pretends it's that day (to show each sprint state). Never ships.
+const fakeToday = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('today') : null;
+
 /** Today as YYYY-MM-DD in the viewer's own time zone. */
 export function todayISO(now = new Date()) {
+  if (fakeToday) return fakeToday;
   const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }

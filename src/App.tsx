@@ -10,6 +10,7 @@ import { Sprints } from './pages/Sprints';
 import { SprintPage } from './pages/SprintPage';
 import { Library } from './pages/Library';
 import { Products } from './pages/Products';
+import { ProductPage } from './pages/ProductPage';
 import { Archive } from './pages/Archive';
 import { Welcome } from './pages/Welcome';
 import { Placeholder } from './pages/Placeholder';
@@ -25,6 +26,8 @@ const byPath = Object.fromEntries(allNav.map((n) => [n.path, n]));
 // import.meta.env.DEV is false in the published build, so this never ships.
 const shellPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('shell');
 const signInPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('signin');
+const setPasswordPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('setpassword');
+const noAccessPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('noaccess');
 
 /** After this many days away, the first page you see is the Welcome back recap. */
 const RECAP_AFTER_DAYS = 3;
@@ -32,6 +35,8 @@ const RECAP_AFTER_DAYS = 3;
 function Gate() {
   const { loading, session, membership, needsPassword } = useAuth();
   if (signInPreview) return <SignIn />;
+  if (setPasswordPreview) return <SetPassword />;
+  if (noAccessPreview) return <NoAccess />;
   if (shellPreview) return <DataProvider><Shell /></DataProvider>;
   if (loading || (session && membership === 'unknown')) return <div className="loading" aria-busy="true" />;
   if (!session) return <SignIn />;
@@ -66,6 +71,7 @@ function Shell() {
           <Route path="sprints/:id" element={<SprintPage />} />
           <Route path="library" element={<Library />} />
           <Route path="products" element={<Products />} />
+          <Route path="products/:id" element={<ProductPage />} />
           <Route path="hr" element={<Placeholder item={byPath['/hr']} />} />
           <Route path="hiring" element={<Placeholder item={byPath['/hiring']} />} />
           <Route path="analytics" element={<Placeholder item={byPath['/analytics']} />} />

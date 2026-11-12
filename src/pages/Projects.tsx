@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Archive, ExternalLink, MoreHorizontal, Pin, Plus, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
-import { GroupHeader, Loading, Menu, MenuItem, People, Progress, Tag, TagSelect } from '../components/ui';
+import { GroupHeader, Loading, Menu, MenuItem, People, Progress, TagSelect } from '../components/ui';
+import { priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
 import { PROJECT_STATUS, fmtDate } from '../lib/format';
 import { usePinned } from '../lib/prefs';
@@ -70,7 +71,7 @@ export function Projects() {
 
       <div className="table" role="table">
         <div className="tr th t-caption cols-projects" role="row">
-          <span>Project</span><span>Product</span><span>Status</span><span>Lead</span><span>End date</span><span>Progress</span><span />
+          <span>Project</span><span>Status</span><span>Priority</span><span>Lead</span><span>End date</span><span>Progress</span><span />
         </div>
         {sorted.map(([key, g]) => {
           const list = g.rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.name.localeCompare(b.name));
@@ -87,9 +88,10 @@ export function Projects() {
                   return (
                     <div key={p.id} className="tr t-body cols-projects" role="row">
                       <Link to={`/projects/${p.id}`} className="row-link">{p.emoji ?? product?.emoji} {p.name}</Link>
-                      <span>{product ? <Tag tone="blue">{product.name}</Tag> : <span className="muted">—</span>}</span>
                       <span><TagSelect label={`Status of ${p.name}`} value={p.status} options={statusOptions}
                         onChange={(v) => v && updateProject(p.id, { status: v })} /></span>
+                      <span><TagSelect label={`Priority of ${p.name}`} value={p.priority} options={priorityOptions} placeholder="—"
+                        onChange={(v) => updateProject(p.id, { priority: v })} /></span>
                       <span className="t-caption"><People people={ix.people(p, 'lead')} /></span>
                       <span className="t-caption">{fmtDate(p.ends_on)}</span>
                       <span className="progress-cell t-caption"><Progress pct={pr.pct} /><span>{pr.total ? `${pr.pct}%` : '—'}</span></span>

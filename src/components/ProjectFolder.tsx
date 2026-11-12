@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Progress } from './ui';
 import type { FolderColor } from '../lib/format';
 
-/** Mirrors the Figma "App/Project Folder" (Color = Pink / Blue / Purple / Green / Sand). Used for project cards too. */
-export function ProjectFolder({ to, color, emoji, name, tags, done, total, pill, date, dateWarn }: {
+/** Mirrors the Figma "App/Project Folder" (Type = Internal Design / Pulz / ROR / ATMGo / DT → pink / blue / purple / green / sand). Used for project cards too. */
+export function ProjectFolder({ to, color, emoji, name, tags, done, total, pill, date, dateWarn, drag }: {
   to: string;
   color: FolderColor;
   emoji?: string | null;
@@ -15,10 +15,12 @@ export function ProjectFolder({ to, color, emoji, name, tags, done, total, pill,
   pill: ReactNode;
   date: string;
   dateWarn?: boolean;
+  /** Board drag handlers (Home board). */
+  drag?: object;
 }) {
   const pct = total ? Math.round((done / total) * 100) : 0;
   return (
-    <Link to={to} className={`folder folder-${color}`}>
+    <Link to={to} className={`folder folder-${color}`} {...drag}>
       <span className="folder-tab" aria-hidden />
       <span className="folder-body">
         <span className="folder-title t-title-body">

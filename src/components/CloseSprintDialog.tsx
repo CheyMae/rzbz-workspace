@@ -57,7 +57,7 @@ export function CloseSprintDialog({ sprint, onClose }: { sprint: Sprint; onClose
         {' '}It stays open until someone closes it, so nothing gets lost. {plural(open.length, 'task')} across {plural(projects, 'project')} {open.length === 1 ? 'is' : 'are'} still open.
       </p>
       <div className="stat-tiles">
-        {[['Not started', 'not_started'], ['In progress', 'in_progress'], ['Design ready', 'design_ready'], ['Next up', 'next_up']].map(([l, s]) => (
+        {[['Not started', 'not_started'], ['In progress', 'in_progress'], ['Next up', 'next_up']].map(([l, s]) => (
           <div key={s} className="stat-tile"><span className="t-title-section">{count(s)}</span><span className="t-caption muted">{l}</span></div>
         ))}
       </div>

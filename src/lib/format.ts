@@ -29,11 +29,12 @@ export const TASK_STATUS: Record<TaskStatus, { label: string; tone: Tone }> = {
   not_started: { label: 'Not Started', tone: 'default' },
   next_up: { label: 'Next Up', tone: 'blue' },
   in_progress: { label: 'In Progress', tone: 'yellow' },
-  design_ready: { label: 'Design Ready', tone: 'blue' },
+  design_ready: { label: 'Done', tone: 'green' },
   done: { label: 'Done', tone: 'green' },
   archived: { label: 'Archived', tone: 'default' },
 };
-export const TASK_FLOW: TaskStatus[] = ['not_started', 'next_up', 'in_progress', 'design_ready', 'done'];
+/** Board columns and status choices. Design Ready was folded into Done (Nov 2026). */
+export const TASK_FLOW: TaskStatus[] = ['not_started', 'in_progress', 'done', 'next_up'];
 
 export const PRIORITY: Record<Priority, { label: string; tone: Tone }> = {
   high: { label: 'High', tone: 'red' },
@@ -41,10 +42,17 @@ export const PRIORITY: Record<Priority, { label: string; tone: Tone }> = {
   low: { label: 'Low', tone: 'default' },
 };
 
-/** Folder / card colour per product (from the App/Project Folder component). */
+/**
+ * Folder / card colour per product, following the App/Project Folder "Type" variants:
+ * Internal Design = pink, Pulz = blue, ROR = purple, ATMGo = green, DT (DiskarTech) = sand.
+ * Other RCBC products share Pulz blue; internal work (HR, Organize, Shift to Figma…) shares Internal Design pink.
+ */
 export type FolderColor = 'pink' | 'blue' | 'purple' | 'green' | 'sand';
-const PRODUCT_COLOR: Record<string, FolderColor> = {
-  'internal design': 'pink', 'rcbc pulz': 'blue', 'rcbc pulz app': 'blue', diskartech: 'purple', rcbc: 'green', 'atm go': 'sand',
+export const folderColor = (productName: string | undefined | null): FolderColor => {
+  const n = (productName ?? '').toLowerCase();
+  if (n.includes('diskartech') || n === 'dt') return 'sand';
+  if (n.includes('atm go') || n === 'atmgo') return 'green';
+  if (n === 'ror') return 'purple';
+  if (n.includes('pulz') || n.startsWith('rcbc')) return 'blue';
+  return 'pink';
 };
-export const folderColor = (productName: string | undefined | null): FolderColor =>
-  PRODUCT_COLOR[(productName ?? '').toLowerCase()] ?? 'sand';

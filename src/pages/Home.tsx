@@ -6,7 +6,7 @@ import { SprintBanner } from '../components/SprintBanner';
 import { ProjectFolder } from '../components/ProjectFolder';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
-import { Chip, GroupHeader, Loading, People, Progress, Tag, ViewTabs } from '../components/ui';
+import { Chip, GroupHeader, Loading, People, Progress, Tag, ViewTabs, useBoardDrag } from '../components/ui';
 import { isOpenTask, useData, useIndex, type Index } from '../lib/data';
 import { sprintState, todayISO } from '../lib/sprints';
 import { BOARD_STATUSES, PRIORITY, PROJECT_STATUS, fmtDate, firstName, folderColor, plural } from '../lib/format';
@@ -61,7 +61,7 @@ export function Home() {
         <Button icon={<Plus size={14} />} onClick={newProject}>New project</Button>
       </div>
       <div className="toolbar">
-        {active.length > 0 && <Chip>{active.length > 1 ? 'Sprints' : 'Sprint'}: {sprintChip}</Chip>}
+        {active.length > 1 && <Chip>Sprints: {sprintChip}</Chip>}
         <label className="chip chip-sand t-caption select-chip">
           <Plus size={12} aria-hidden /> Product:
           <select value={productId} onChange={(e) => setProductId(e.target.value)} aria-label="Filter by product">
@@ -79,7 +79,7 @@ export function Home() {
 
 const boardStatus = (s: ProjectStatus): ProjectStatus => (s === 'waiting_for_feedback' ? 'paused' : s === 'canceled' ? 'done' : s);
 
-function card(p: Project, ix: Index, tasks: Task[], today: string, pill?: React.ReactNode) {
+function card(p: Project, ix: Index, tasks: Task[], today: string, pill?: React.ReactNode, drag?: object) {
   const product = ix.productOf(p);
   const mine = tasks.filter((t) => t.project_id === p.id);
   const pr = ix.progress(mine);
@@ -93,23 +93,29 @@ function card(p: Project, ix: Index, tasks: Task[], today: string, pill?: React.
       done={pr.done} total={pr.total}
       pill={pill ?? (lead ? firstName(lead) : 'No lead yet')}
       date={p.ends_on ? fmtDate(p.ends_on, false) : 'No due date'}
-      dateWarn={!!p.ends_on && p.ends_on < today && p.status !== 'done'} />
+      dateWarn={!!p.ends_on && p.ends_on < today && p.status !== 'done'} drag={drag} />
   );
 }
 
 function Board({ projects, ix, tasks, today }: { projects: Project[]; ix: Index; tasks: Task[]; today: string }) {
+  const { updateProject } = useData();
   const [showAllDone, setShowAllDone] = useState(false);
+  // Drag a folder to another column to change the project's status.
+  const { dragProps, dropProps } = useBoardDrag((id, col) => {
+    const p = projects.find((x) => x.id === id);
+    if (p && boardStatus(p.status) !== col) updateProject(id, { status: col as ProjectStatus });
+  });
   return (
     <div className="board">
       {BOARD_STATUSES.map((st) => {
         const col = projects.filter((p) => boardStatus(p.status) === st);
         const limit = st === 'done' && !showAllDone ? 3 : Infinity;
         return (
-          <section key={st} className={`board-col col-${st}`} aria-label={PROJECT_STATUS[st].label}>
+          <section key={st} className={`board-col col-${st}`} aria-label={PROJECT_STATUS[st].label} {...dropProps(st)}>
             <header className="col-header t-caption-emphasis">
               <span className={`dot dot-${st}`} aria-hidden />{PROJECT_STATUS[st].label}<span className="muted">{col.length}</span>
             </header>
-            {col.slice(0, limit).map((p) => card(p, ix, tasks, today))}
+            {col.slice(0, limit).map((p) => card(p, ix, tasks, today, undefined, dragProps(p.id)))}
             {col.length > limit && (
               <button type="button" className="link-button t-caption col-more" onClick={() => setShowAllDone(true)}>+ {col.length - limit} more</button>
             )}
@@ -134,7 +140,7 @@ function ListByProduct({ projects, ix }: { projects: Project[]; ix: Index }) {
   return (
     <div className="table" role="table">
       <div className="tr th t-caption" role="row">
-        <span>Project</span><span>Priority</span><span>Status</span><span>Lead</span><span>End date</span><span>Progress</span>
+        <span>Project</span><span>Status</span><span>Priority</span><span>Lead</span><span>End date</span><span>Progress</span>
       </div>
       {sorted.map(([key, g]) => (
         <div key={key} role="rowgroup">
@@ -147,8 +153,8 @@ function ListByProduct({ projects, ix }: { projects: Project[]; ix: Index }) {
             return (
               <div key={p.id} className="tr t-body" role="row">
                 <RowLink to={`/projects/${p.id}`}>{p.emoji ?? g.emoji} {p.name}</RowLink>
-                <span>{p.priority ? <Tag tone={PRIORITY[p.priority].tone}>{PRIORITY[p.priority].label}</Tag> : <span className="muted">—</span>}</span>
                 <span><Tag tone={PROJECT_STATUS[p.status].tone}>{PROJECT_STATUS[p.status].label}</Tag></span>
+                <span>{p.priority ? <Tag tone={PRIORITY[p.priority].tone}>{PRIORITY[p.priority].label}</Tag> : <span className="muted">—</span>}</span>
                 <span className="t-caption"><People people={ix.people(p, 'lead')} /></span>
                 <span className="t-caption">{fmtDate(p.ends_on)}</span>
                 <span className="progress-cell t-caption"><Progress pct={pr.pct} /><span>{pr.pct}%</span></span>

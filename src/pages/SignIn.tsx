@@ -4,7 +4,9 @@ import { TextInput } from '../components/TextInput';
 import { supabase, isConfigured } from '../lib/supabase';
 
 /** Morning scene from 6 am to 6 pm on the viewer's clock, night scene otherwise (Figma 01 Morning / Night). */
-export const isDaytime = (d = new Date()) => d.getHours() >= 6 && d.getHours() < 18;
+// Local preview only: ?scene=morning|night forces one scene. Never ships.
+const forcedScene = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('scene') : null;
+export const isDaytime = (d = new Date()) => (forcedScene ? forcedScene === 'morning' : d.getHours() >= 6 && d.getHours() < 18);
 
 /** Figma 01 · Sign in: pixel scene behind, card on the left. Also used by Set password / No access. */
 export function AuthCard({ children, title }: { children: ReactNode; title?: ReactNode }) {

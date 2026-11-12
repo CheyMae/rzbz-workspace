@@ -177,6 +177,7 @@ export function ProjectPage() {
 
 function PeoplePicker({ people, selected, empty, onChange }: { people: Person[]; selected: Person[]; empty: string; onChange: (ids: string[]) => void }) {
   const ids = new Set(selected.map((p) => p.id));
+  const choices = people.filter((p) => p.active !== false || ids.has(p.id));
   return (
     <Menu align="left" trigger={(_, t) => (
       <button type="button" className="people-button t-body" onClick={t}>
@@ -185,7 +186,7 @@ function PeoplePicker({ people, selected, empty, onChange }: { people: Person[];
     )}>
       {() => (
         <div className="check-list menu-list">
-          {people.slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
+          {choices.sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
             <label key={p.id} className="t-caption">
               <input type="checkbox" checked={ids.has(p.id)} onChange={(e) => {
                 const n = new Set(ids); e.target.checked ? n.add(p.id) : n.delete(p.id); onChange([...n]);

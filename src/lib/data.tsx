@@ -54,7 +54,7 @@ async function loadWorkspace(): Promise<Workspace> {
   if (devFixture) return (await fetch(`${import.meta.env.BASE_URL}dev-fixture/workspace.json`)).json();
   const [people, products, sprints, projects, tasks, library, projectProducts, projectPeople, projectSprints, taskAssignees] =
     await Promise.all([
-      fetchAll<Person>('people', 'id,name,email'),
+      fetchAll<Person>('people', '*'),
       fetchAll<Product>('products', 'id,name,emoji,sort_order', (q) => q.order('sort_order')),
       fetchAll<Sprint>('sprints', 'id,year,number,suffix,kind,name,starts_on,ends_on,status,closed_at', (q) => q.order('starts_on')),
       fetchAll<Project>('projects', PROJECT_COLS, (q) => q.eq('is_archived', false).order('name')),
@@ -87,6 +87,7 @@ interface DataApi {
   removeProjectSprint: (projectId: string, sprintId: string) => Promise<void>;
   closeSprint: (sprintId: string, mode: 'move' | 'keep') => Promise<{ moved_tasks: number; next_up_tasks: number; next: string } | null>;
   createLibraryItem: (item: Partial<LibraryItem> & { name: string; section: string }) => Promise<void>;
+  updatePerson: (id: string, patch: Partial<Person>) => Promise<void>;
 }
 
 const Ctx = createContext<DataApi | null>(null);
@@ -199,6 +200,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await reload();
       return data as { moved_tasks: number; next_up_tasks: number; next: string };
     },
+
+    updatePerson: (id, patch) => save(
+      (w) => ({ ...w, people: w.people.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
+      () => supabase!.from('people').update(patch).eq('id', id),
+    ),
 
     createLibraryItem: async (item) => {
       const { error } = await supabase!.from('library_items').insert(item);

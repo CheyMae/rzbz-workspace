@@ -3,7 +3,7 @@ import { Check, Plus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
-import { People, Tag, TagSelect } from './ui';
+import { People, Tag, TagSelect, useBoardDrag } from './ui';
 import { useData, useIndex, type Index } from '../lib/data';
 import { PRIORITY, TASK_FLOW, TASK_STATUS, fmtDate, firstName } from '../lib/format';
 import type { Priority, Task, TaskStatus } from '../lib/types';
@@ -62,16 +62,22 @@ export function NewTaskRow({ defaults, label = 'New task' }: { defaults: Partial
 /** Columns by task status (Figma 07b). */
 export function TaskBoard({ tasks, onOpen, showProject = true }: { tasks: Task[]; onOpen: (t: Task) => void; showProject?: boolean }) {
   const ix = useIndex();
+  const { updateTask } = useData();
   const [all, setAll] = useState<Set<TaskStatus>>(new Set());
+  // Drag a card to another column to change its status.
+  const { dragProps, dropProps } = useBoardDrag((id, col) => {
+    const t = tasks.find((x) => x.id === id);
+    if (t && t.status !== col) updateTask(id, { status: col as TaskStatus });
+  });
   return (
     <div className="board board-5">
       {TASK_FLOW.map((st) => {
         const col = tasks.filter((t) => t.status === st);
         const limit = all.has(st) ? Infinity : 6;
         return (
-          <section key={st} className={`board-col tcol-${st}`} aria-label={TASK_STATUS[st].label}>
+          <section key={st} className={`board-col tcol-${st}`} aria-label={TASK_STATUS[st].label} {...dropProps(st)}>
             <header className="col-header t-caption-emphasis"><span className={`dot tdot-${st}`} aria-hidden />{TASK_STATUS[st].label}<span className="muted">{col.length}</span></header>
-            {col.slice(0, limit).map((t) => <TaskCard key={t.id} task={t} ix={ix} onOpen={onOpen} showProject={showProject} />)}
+            {col.slice(0, limit).map((t) => <TaskCard key={t.id} task={t} ix={ix} onOpen={onOpen} showProject={showProject} drag={dragProps(t.id)} />)}
             {col.length > limit && <button type="button" className="link-button t-caption col-more" onClick={() => setAll(new Set([...all, st]))}>+ {col.length - limit} more</button>}
             {!col.length && <p className="t-caption muted col-empty">Nothing here</p>}
           </section>
@@ -81,11 +87,11 @@ export function TaskBoard({ tasks, onOpen, showProject = true }: { tasks: Task[]
   );
 }
 
-function TaskCard({ task, ix, onOpen, showProject }: { task: Task; ix: Index; onOpen: (t: Task) => void; showProject: boolean }) {
+function TaskCard({ task, ix, onOpen, showProject, drag }: { task: Task; ix: Index; onOpen: (t: Task) => void; showProject: boolean; drag?: object }) {
   const project = task.project_id ? ix.project.get(task.project_id) : null;
   const who = ix.assignees(task);
   return (
-    <button type="button" className="task-card" onClick={() => onOpen(task)}>
+    <button type="button" className="task-card" onClick={() => onOpen(task)} {...drag}>
       <span className="t-body-emphasis">{task.title}</span>
       {showProject && <span className="t-caption muted">{project ? `${project.emoji ?? ix.productOf(project)?.emoji ?? ''} ${project.name}` : 'No project'}</span>}
       {task.priority && <span><Tag tone={PRIORITY[task.priority].tone}>{PRIORITY[task.priority].label}</Tag></span>}
@@ -141,7 +147,7 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
             </select>
           </dd>
           <dt>Assignees</dt><dd className="check-list">
-            {ws.people.slice().sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
+            {ws.people.filter((p) => p.active !== false || assigned.has(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
               <label key={p.id} className="t-caption">
                 <input type="checkbox" checked={assigned.has(p.id)} onChange={(e) => {
                   const next = new Set(assigned); e.target.checked ? next.add(p.id) : next.delete(p.id);
