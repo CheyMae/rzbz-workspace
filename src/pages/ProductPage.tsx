@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Clock, PieChart } from 'lucide-react';
+import { Clock, PieChart, Search } from 'lucide-react';
 import { GroupHeader, Loading, People, Progress, Stat, TagSelect, ViewTabs } from '../components/ui';
 import { priorityOptions } from '../components/tasks';
 import { useData, useIndex, type Index } from '../lib/data';
@@ -22,6 +22,7 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
   const ix = useIndex();
   const [view, setView] = usePref<View>('product.view', 'sprint');
   const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [q, setQ] = useState('');
   if (!ready) return <Loading />;
   const product = ws.products.find((p) => p.id === id);
   if (!product) return <div className="page"><p className="t-body">Nothing here yet. <Link to="/products">Back to Products</Link></p></div>;
@@ -30,6 +31,9 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
   const projects = ws.projects.filter((p) => ix.productOf(p)?.id === product.id);
   const tasks = projects.flatMap((p) => ix.tasksOf(p));
   const pr = ix.progress(tasks);
+  // Search narrows the list (by project name or lead); the summary above still counts every project.
+  const needle = q.trim().toLowerCase();
+  const listed = needle ? projects.filter((p) => `${p.name} ${ix.people(p, 'lead').map((x) => x.name).join(' ')}`.toLowerCase().includes(needle)) : projects;
   const toggle = (k: string) => setClosed((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
 
   // By sprint: each project sits under the newest sprint it belongs to (linked, or through its tasks).
@@ -42,7 +46,7 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
   let groups: G[];
   if (view === 'sprint') {
     const m = new Map<string, { sprint: Sprint | null; rows: Project[] }>();
-    for (const p of projects) {
+    for (const p of listed) {
       const s = latestSprint(p);
       const k = s?.id ?? 'none';
       if (!m.has(k)) m.set(k, { sprint: s, rows: [] });
@@ -60,7 +64,7 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
     groups = STATUS_ORDER.map((st) => ({
       key: st,
       title: PROJECT_STATUS[st].label,
-      rows: projects.filter((p) => p.status === st).sort((a, b) => a.name.localeCompare(b.name)),
+      rows: listed.filter((p) => p.status === st).sort((a, b) => a.name.localeCompare(b.name)),
     })).filter((g) => g.rows.length);
   }
 
@@ -92,6 +96,10 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
           { value: 'sprint', label: 'By sprint', icon: <Clock size={14} /> },
           { value: 'progress', label: 'By progress', icon: <PieChart size={14} /> },
         ]} />
+        <span className="grow" />
+        <label className="search-inline t-caption"><Search size={14} aria-hidden />
+          <input placeholder="Find a project" value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Find a project in ${product.name}`} />
+        </label>
       </div>
 
       <div className="table" role="table">
@@ -105,6 +113,7 @@ export function ProductPage({ productId, crumb }: { productId?: string; crumb?: 
           </div>
         ))}
         {!projects.length && <p className="t-body muted empty-row">No projects for {product.name} yet.</p>}
+        {projects.length > 0 && !listed.length && <p className="t-body muted empty-row">No projects match “{q.trim()}”.</p>}
       </div>
     </div>
   );
