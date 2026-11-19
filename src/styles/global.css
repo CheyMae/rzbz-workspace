@@ -216,7 +216,7 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .stat { display: flex; flex-direction: column; }
 
 /* Board */
-.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--scale-200); align-items: start; }
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--scale-200); align-items: stretch; }
 .board-5 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--scale-150); }
 .board-col { display: flex; flex-direction: column; gap: var(--scale-150); padding: var(--scale-150); border-radius: var(--radius-md); min-width: 0; }
 .col-not_started, .tcol-not_started { background: var(--surface-tag-default); }
