@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { CornerDownLeft, ExternalLink, Search } from 'lucide-react';
 import { useData, useIndex } from '../lib/data';
@@ -97,7 +98,8 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   };
 
   let lastGroup = '';
-  return (
+  // Rendered on <body> so it sits above the page, not inside the sidebar's stacking layer.
+  return createPortal(
     <div className="scrim scrim-top" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="palette" role="dialog" aria-modal="true" aria-label="Search">
         <label className="palette-field">
@@ -128,6 +130,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
         </div>
         <div className="palette-foot t-caption muted"><span><Kbd>↑</Kbd><Kbd>↓</Kbd> to move</span><span><Kbd>↵</Kbd> to open</span></div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
