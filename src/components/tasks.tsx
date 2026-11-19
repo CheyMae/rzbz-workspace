@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePref } from '../lib/prefs';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { PeoplePicker } from './PeoplePicker';
 import { Button } from './Button';
-import { BlockEditor } from './BlockEditor';
+// The notes editor is big (Tiptap), so it loads only when a task panel opens.
+const NotesEditor = lazy(() => import('./notes/NotesEditor').then((m) => ({ default: m.NotesEditor })));
 import { ConfirmDelete, People, Tag, TagSelect, useBoardDrag } from './ui';
 import { useData, useIndex, type Index } from '../lib/data';
 import { PRIORITY, TASK_FLOW, TASK_STATUS, fmtDate, firstName } from '../lib/format';
@@ -224,7 +225,10 @@ export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () =
         <hr className="rule" />
         <section className="notes-section">
           <span className="t-caption-emphasis">Notes</span>
-          <BlockEditor key={live.id} value={live.notes ?? ''} onEditing={() => setSaveState('editing')} onChange={(v) => up({ notes: v || null })} />
+          <Suspense fallback={<p className="t-body muted">Loading notes…</p>}>
+          <NotesEditor key={live.id} doc={live.notes_doc} legacy={live.notes} onEditing={() => setSaveState('editing')}
+            onChange={(doc, text) => up({ notes_doc: doc, notes: text.trim() ? text : null })} />
+          </Suspense>
         </section>
         {live.summary && <p className="t-caption muted">{live.summary}</p>}
         <div className="drawer-foot">

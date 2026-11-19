@@ -58,7 +58,7 @@ async function loadWorkspace(): Promise<Workspace> {
       fetchAll<Product>('products', '*', (q) => q.order('sort_order')),
       fetchAll<Sprint>('sprints', 'id,year,number,suffix,kind,name,starts_on,ends_on,status,closed_at', (q) => q.order('starts_on')),
       fetchAll<Project>('projects', PROJECT_COLS, (q) => q.eq('is_archived', false).order('name')),
-      fetchAll<Task>('tasks', TASK_COLS, (q) => q.eq('is_archived', false).order('due_end', { ascending: true, nullsFirst: false })),
+      fetchAll<Task>('tasks', '*', (q) => q.eq('is_archived', false).order('due_end', { ascending: true, nullsFirst: false })),
       fetchAll<LibraryItem>('library_items', '*', (q) => q.order('sort_order')),
       fetchAll<Link>('project_products'),
       fetchAll<Role>('project_people'),

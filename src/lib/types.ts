@@ -51,6 +51,8 @@ export interface Task {
   parent_task_id: string | null;
   summary: string | null;
   notes: string | null;
+  /** Rich notes from the block editor (ProseMirror JSON). Missing until the 20261116 migration runs. */
+  notes_doc?: unknown | null;
   carried_over_from: string | null;
   is_archived: boolean;
   created_at: string;
