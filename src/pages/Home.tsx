@@ -26,12 +26,15 @@ export function Home() {
   const { current, extended, active } = useMemo(() => sprintState(ws.sprints, today), [ws.sprints, today]);
 
   const activeIds = new Set(active.map((s) => s.id));
-  const sprintTasks = ws.tasks.filter((t) => t.sprint_id && activeIds.has(t.sprint_id));
+  // HR projects (and their tasks) only show under Team › HR Stuff.
+  const workProjects = ws.projects.filter((p) => !ix.isTeam(p));
+  const workIds = new Set(workProjects.map((p) => p.id));
+  const sprintTasks = ws.tasks.filter((t) => t.sprint_id && activeIds.has(t.sprint_id) && (!t.project_id || workIds.has(t.project_id)));
   const projectIds = new Set([
     ...ws.projectSprints.filter((l) => activeIds.has(l.sprint_id)).map((l) => l.project_id),
     ...sprintTasks.map((t) => t.project_id).filter(Boolean) as string[],
   ]);
-  const projects = ws.projects
+  const projects = workProjects
     .filter((p) => projectIds.has(p.id))
     .filter((p) => !productId || ix.productOf(p)?.id === productId);
 
@@ -66,13 +69,13 @@ export function Home() {
           <Plus size={12} aria-hidden /> Product:
           <select value={productId} onChange={(e) => setProductId(e.target.value)} aria-label="Filter by product">
             <option value="">All</option>
-            {ws.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {ws.products.filter((p) => p.kind !== 'team').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </label>
       </div>
       {view === 'board' && <Board projects={projects} ix={ix} tasks={sprintTasks} today={today} />}
       {view === 'list' && <ListByProduct projects={projects} ix={ix} />}
-      {view === 'ownership' && <Ownership projects={projects} ix={ix} tasks={sprintTasks} active={active} people={ws.people} allProjects={ws.projects} today={today} />}
+      {view === 'ownership' && <Ownership projects={projects} ix={ix} tasks={sprintTasks} active={active} people={ws.people} allProjects={workProjects} today={today} />}
     </div>
   );
 }

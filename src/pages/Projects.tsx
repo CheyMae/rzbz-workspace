@@ -32,10 +32,12 @@ export function Projects() {
   const [filters, setFilters] = usePref<Filters>('projects.filters', {});
   if (!ready) return <Loading />;
 
+  // HR projects only show under Team › HR Stuff.
+  const all = ws.projects.filter((p) => !ix.isTeam(p));
   const designers = ws.people.filter((x) => x.is_designer);
   const personOpts = (list: typeof ws.people) => list.map((x) => ({ value: x.id, label: x.name }));
   const fields: FilterField[] = [
-    { key: 'product', label: 'Product', icon: <Package size={14} />, options: ws.products.map((x) => ({ value: x.id, label: x.name, emoji: x.emoji ?? undefined })) },
+    { key: 'product', label: 'Product', icon: <Package size={14} />, options: ws.products.filter((x) => x.kind !== 'team').map((x) => ({ value: x.id, label: x.name, emoji: x.emoji ?? undefined })) },
     { key: 'priority', label: 'Priority', icon: <TagIcon size={14} />, options: [...priorityOptions.map((o) => ({ value: o.value, label: o.label })), { value: 'none', label: 'No priority' }] },
     { key: 'lead', label: 'Lead', icon: <User size={14} />, options: personOpts(designers), searchable: true },
     { key: 'support', label: 'Support', icon: <Users size={14} />, options: personOpts(designers), searchable: true },
@@ -53,8 +55,8 @@ export function Projects() {
     any('sprint', ix.projectSprints(p).map((x) => x.id));
   const filtering = Object.values(filters).some((v) => v.length > 0);
 
-  const count = (s: ProjectStatus) => ws.projects.filter((p) => p.status === s && matches(p)).length;
-  const rows = ws.projects
+  const count = (s: ProjectStatus) => all.filter((p) => p.status === s && matches(p)).length;
+  const rows = all
     .filter((p) => tab === 'all' || p.status === tab)
     .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()))
     .filter(matches);
@@ -77,13 +79,13 @@ export function Projects() {
 
   return (
     <div className="page">
-      <PageHeader emoji="📁" title="Projects" subtitle={`${ws.projects.length} projects, grouped by product`} />
+      <PageHeader emoji="📁" title="Projects" subtitle={`${all.length} projects, grouped by product`} />
       <div className="toolbar">
         <div className="view-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.value} type="button" role="tab" aria-selected={tab === t.value}
               className={`view-tab t-caption${tab === t.value ? ' is-selected' : ''}`} onClick={() => setTab(t.value)}>
-              {t.label} · {t.value === 'all' ? ws.projects.filter(matches).length : count(t.value)}
+              {t.label} · {t.value === 'all' ? all.filter(matches).length : count(t.value)}
             </button>
           ))}
         </div>

@@ -105,7 +105,7 @@ export function Sidebar() {
       ...ws.tasks.filter((t) => t.sprint_id && activeIds.has(t.sprint_id)).map((t) => t.project_id).filter(Boolean) as string[],
     ]);
     return {
-      '/projects': { kids: ws.projects.filter((p) => inSprint.has(p.id)).map(projectChild), empty: 'No projects in this sprint' },
+      '/projects': { kids: ws.projects.filter((p) => inSprint.has(p.id) && !ix.isTeam(p)).map(projectChild), empty: 'No projects in this sprint' },
       '/sprints': {
         kids: ws.sprints.filter((s) => s.kind === 'sprint' && s.status !== 'closed').sort((a, b) => a.starts_on.localeCompare(b.starts_on))
           .map((s) => ({ key: s.id, to: `/sprints/${s.id}`, emoji: s.status === 'open' ? '🏃' : '🗓️', label: s.name })),
