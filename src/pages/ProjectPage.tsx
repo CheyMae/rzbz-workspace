@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, Calendar, CheckSquare, Clock, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
+import { Archive, Calendar, CheckSquare, Clock, LayoutGrid, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
 import { DeleteProject } from './Projects';
 import { PeoplePicker } from '../components/PeoplePicker';
+import { Button } from '../components/Button';
 import { GroupHeader, Loading, Menu, MenuItem, TagSelect, ViewTabs } from '../components/ui';
 import { NewTaskRow, TaskBoard, TaskDrawer, TaskRow, TaskTableHead, priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
@@ -21,14 +22,15 @@ type View = 'sprint' | 'board';
 /** Figma 05 · Project page. Sprints are a property here, with Add sprint. */
 export function ProjectPage() {
   const { id } = useParams();
-  const { ready, ws, updateProject, setProjectProduct, setProjectPeople, addProjectSprint, removeProjectSprint, deleteProject } = useData();
+  const { ready, ws, updateProject, setProjectProduct, setProjectPeople, addProjectSprint, removeProjectSprint, deleteProject, createTask } = useData();
   const nav = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const ix = useIndex();
   const pins = usePinned();
-  const [savedView, setView] = usePref<View>('project.view', 'sprint');
-  const view: View = savedView === 'board' ? 'board' : 'sprint';
-  const [open, setOpen] = useState<Task | null>(null);
+  // Board is the default (a new pref key, so everyone starts on Board once).
+  const [savedView, setView] = usePref<View>('project.taskView', 'board');
+  const view: View = savedView === 'sprint' ? 'sprint' : 'board';
+  const [open, setOpen] = useState<{ task: Task; isNew?: boolean } | null>(null);
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const p = ws.projects.find((x) => x.id === id);
   const [name, setName] = useState(p?.name ?? '');
@@ -62,9 +64,16 @@ export function ProjectPage() {
   const sprintGroups = [...bySprint.entries()].sort((a, b) => (b[1].sprint?.starts_on ?? '0').localeCompare(a[1].sprint?.starts_on ?? '0'));
   const toggle = (k: string) => setClosed((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
   const current = sprints.find((s) => s.status === 'open') ?? addable.find((s) => s.status === 'open');
+  const openTask = (t: Task) => setOpen({ task: t });
+  // "New task": make it in the current sprint and open its panel with the name ready to type.
+  const newTask = async () => {
+    const draft = { project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' as const, title: 'Untitled' };
+    const tid = await createTask(draft);
+    if (tid) setOpen({ task: { ...draft, id: tid } as Task, isNew: true });
+  };
 
   return (
-    <div className="page page-doc">
+    <div className="page page-doc page-doc-wide">
       <div className="doc-top t-caption">
         <nav className="crumbs" aria-label="Breadcrumb"><Link to="/projects">📁 Projects</Link><span aria-hidden>/</span><span>{p.emoji ?? product?.emoji} {p.name}</span></nav>
         <span className="grow" />
@@ -157,15 +166,16 @@ export function ProjectPage() {
         </label>
       </section>
 
-      <section className="doc-section">
+      <section className="doc-section doc-wide">
         <div className="toolbar">
           <h2 className="t-title-section">Tasks <span className="t-caption muted">{tasks.length}</span></h2>
           <span className="grow" />
           <ViewTabs<View> value={view} onChange={setView} tabs={[
-            { value: 'sprint', label: 'By sprint' }, { value: 'board', label: 'Board' },
+            { value: 'board', label: 'Board', icon: <LayoutGrid size={14} /> }, { value: 'sprint', label: 'By sprint', icon: <Clock size={14} /> },
           ]} />
+          <Button icon={<Plus size={14} />} onClick={newTask}>New task</Button>
         </div>
-        {view === 'board' ? <TaskBoard tasks={tasks} onOpen={setOpen} showProject={false} newTask={{ project_id: p.id, sprint_id: current?.id ?? null }} /> : (
+        {view === 'board' ? <TaskBoard tasks={tasks} onOpen={openTask} showProject={false} newTask={{ project_id: p.id, sprint_id: current?.id ?? null }} /> : (
           <div className="table" role="table">
             <TaskTableHead cols={{ sprint: true }} />
             {view === 'sprint' && sprintGroups.map(([k, g]) => (
@@ -174,14 +184,17 @@ export function ProjectPage() {
                   {g.sprint ? <>🏃 {g.sprint.name} <span className="t-caption muted">
                     · {sprintLabel(g.sprint, today).toLowerCase()} · {g.sprint.status === 'closed' ? 'ended' : 'ends'} {fmtDate(g.sprint.ends_on, false)}</span></> : 'No sprint'}
                 </GroupHeader>
-                {!closed.has(k) && g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={setOpen} cols={{ sprint: true }} />)}
+                {!closed.has(k) && <>
+                  {g.rows.map((t) => <TaskRow key={t.id} task={t} onOpen={openTask} cols={{ sprint: true }} />)}
+                  <NewTaskRow defaults={{ project_id: p.id, sprint_id: g.sprint?.id ?? null, status: 'not_started' }} label={g.sprint ? `New task in ${g.sprint.name}` : 'New task'} />
+                </>}
               </div>
             ))}
-            <NewTaskRow defaults={{ project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' }} />
+            {!sprintGroups.length && <NewTaskRow defaults={{ project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' }} />}
           </div>
         )}
       </section>
-      {open && <TaskDrawer task={open} onClose={() => setOpen(null)} />}
+      {open && <TaskDrawer task={open.task} isNew={open.isNew} onClose={() => setOpen(null)} />}
       {deleting && <DeleteProject project={p} taskCount={tasks.length} onClose={() => setDeleting(false)}
         onConfirm={() => { if (pinned) pins.toggle(p.id); deleteProject(p.id); nav('/projects'); }} />}
     </div>

@@ -427,3 +427,36 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .drawer .date-pair { width: 100%; }
 .task-card-foot { flex-wrap: nowrap; }
 .task-card-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* Block notes (Notion-style): type straight into the page, "/" for block types */
+.block-editor { display: flex; flex-direction: column; margin-left: calc(-1 * var(--scale-300)); }
+.block { position: relative; display: flex; align-items: flex-start; gap: var(--scale-100); padding-left: var(--scale-300); min-height: 28px; }
+.block-add { position: absolute; left: 0; top: 4px; width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--icon-subtle); cursor: pointer; opacity: 0; }
+.block:hover .block-add, .block:focus-within .block-add { opacity: 1; }
+.block-add:hover { background: var(--surface-hover); color: var(--icon-default); }
+.block-text { flex: 1; font: var(--type-body); color: var(--text-primary); }
+.block-text > textarea { width: 100%; background: none; color: inherit; outline: none; }
+.block-text > textarea::placeholder { color: transparent; }
+.block-text > textarea:focus::placeholder, .block-text > textarea[data-always]::placeholder { color: var(--text-placeholder, var(--text-secondary)); opacity: 0.7; }
+.block-h1 .block-text { font: var(--type-title-section); padding-top: var(--scale-100); }
+.block-h2 .block-text { font: var(--type-title-subsection); padding-top: var(--scale-50); }
+.block-mark { flex: none; min-width: 16px; padding-top: 4px; font: var(--type-body); color: var(--text-primary); text-align: center; }
+.block-todo .checkbox { flex: none; margin-top: 7px; }
+.block-todo.is-checked .block-text { color: var(--text-secondary); text-decoration: line-through; }
+.block-quote .block-text { border-left: 3px solid var(--text-primary); padding-left: var(--scale-150); }
+.block-rule { flex: 1; border: 0; border-top: var(--border-sm) solid var(--border-default); margin: 13px 0; }
+.block-menu { top: 100%; left: var(--scale-300); width: 260px; max-height: 320px; overflow: auto; }
+.block-menu-title { padding: var(--scale-50) var(--scale-150); }
+.menu-item.is-active { background: var(--surface-hover); }
+.block-tail { min-height: 48px; cursor: text; }
+.notes-section { display: flex; flex-direction: column; gap: var(--scale-100); }
+
+/* Adding tasks: a clear button at the bottom of every board column and task group */
+.add-task { display: flex; align-items: center; gap: var(--scale-50); width: 100%; padding: var(--scale-100) var(--scale-150); border: var(--border-sm) dashed var(--border-strong); border-radius: var(--radius-sm); background: none; color: var(--text-secondary); font: var(--type-caption); cursor: pointer; }
+.add-task:hover { background: var(--surface-hover); color: var(--text-primary); border-style: solid; }
+.table .add-task { border: 0; border-radius: 0; padding: var(--scale-100) var(--scale-150); }
+.table .add-task:hover { border: 0; }
+
+/* Project page: the task board uses the full page width; the rest stays document width */
+.page-doc.page-doc-wide { max-width: calc(1184px + 2 * var(--scale-600)); }
+.page-doc.page-doc-wide > :not(.doc-wide):not(.scrim) { max-width: 880px; width: 100%; }

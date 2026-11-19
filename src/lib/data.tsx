@@ -129,6 +129,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ),
 
     createTask: async (t, assignees = []) => {
+      if (devFixture) { // local preview: add it in memory only
+        const id = crypto.randomUUID(), now = new Date().toISOString();
+        setWs((w) => ({ ...w, tasks: [...w.tasks, { priority: null, phase: null, type: null, due_start: null, due_end: null, parent_task_id: null, summary: null, notes: null, carried_over_from: null, is_archived: false, created_at: now, updated_at: now, project_id: null, sprint_id: null, status: 'not_started', ...t, id } as Task],
+          taskAssignees: [...w.taskAssignees, ...assignees.map((p) => ({ task_id: id, person_id: p }))] }));
+        return id;
+      }
       const { data, error } = await supabase!.from('tasks').insert(t).select(TASK_COLS).single();
       if (error || !data) { setError(error?.message ?? 'Could not add the task'); return null; }
       if (assignees.length) await supabase!.from('task_assignees').insert(assignees.map((p) => ({ task_id: data.id, person_id: p })));

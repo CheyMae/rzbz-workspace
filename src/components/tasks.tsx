@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { PeoplePicker } from './PeoplePicker';
 import { Button } from './Button';
+import { BlockEditor } from './BlockEditor';
 import { ConfirmDelete, People, Tag, TagSelect, useBoardDrag } from './ui';
 import { useData, useIndex, type Index } from '../lib/data';
 import { PRIORITY, TASK_FLOW, TASK_STATUS, fmtDate, firstName } from '../lib/format';
@@ -65,7 +66,7 @@ export function NewTaskRow({ defaults, label = 'New task' }: { defaults: Partial
   const { createTask } = useData();
   const [title, setTitle] = useState<string | null>(null);
   if (title === null) {
-    return <button type="button" className="show-more t-caption muted" onClick={() => setTitle('')}><Plus size={12} /> {label}</button>;
+    return <button type="button" className="add-task" onClick={() => setTitle('')}><Plus size={14} /> {label}</button>;
   }
   return (
     <form className="new-row" onSubmit={async (e) => { e.preventDefault(); if (title.trim()) { await createTask({ ...defaults, title: title.trim() }); } setTitle(null); }}>
@@ -126,14 +127,13 @@ function TaskCard({ task, ix, onOpen, showProject, drag }: { task: Task; ix: Ind
 }
 
 /** Side panel to edit one task. Text saves when you leave the field; everything else saves at once. */
-export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void }) {
+export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () => void; /** Just made: put the cursor in the name. */ isNew?: boolean }) {
   const { ws, updateTask, setTaskAssignees, deleteTask } = useData();
   const [confirming, setConfirming] = useState(false);
   const ix = useIndex();
   const live = ws.tasks.find((t) => t.id === task.id) ?? task;
   const [title, setTitle] = useState(live.title);
-  const [notes, setNotes] = useState(live.notes ?? '');
-  useEffect(() => { setTitle(live.title); setNotes(live.notes ?? ''); }, [live.id]);
+  useEffect(() => { setTitle(live.title); }, [live.id]);
   useEffect(() => {
     // Escape closes the panel, unless the delete confirmation is open (it closes first).
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.dialog')) onClose(); };
@@ -152,7 +152,8 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
         </div>
         {/* The name box grows with its text: an invisible copy of the text sets the height (pure CSS, no measuring). */}
         <div className="grow-text t-title-section" data-value={title}>
-          <textarea className="title-input" rows={1} value={title} aria-label="Task name"
+          <textarea className="title-input" rows={1} value={title} aria-label="Task name" placeholder="Untitled" autoFocus={isNew}
+            onFocus={(e) => isNew && e.currentTarget.select()}
             onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== live.title && updateTask(live.id, { title: title.trim() })} />
         </div>
         <dl className="props">
@@ -180,10 +181,11 @@ export function TaskDrawer({ task, onClose }: { task: Task; onClose: () => void 
             <input type="date" className="input" value={live.due_end ?? ''} aria-label="Due" onChange={(e) => updateTask(live.id, { due_end: e.target.value || null })} />
           </dd>
         </dl>
-        <label className="field"><span className="t-caption-emphasis">Notes</span>
-          <textarea className="input" rows={8} value={notes} onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => notes !== (live.notes ?? '') && updateTask(live.id, { notes: notes || null })} />
-        </label>
+        <hr className="rule" />
+        <section className="notes-section">
+          <span className="t-caption-emphasis">Notes</span>
+          <BlockEditor key={live.id} value={live.notes ?? ''} onChange={(v) => updateTask(live.id, { notes: v || null })} />
+        </section>
         {live.summary && <p className="t-caption muted">{live.summary}</p>}
         <div className="drawer-foot">
           <button type="button" className="btn btn-ghost btn-delete" onClick={() => setConfirming(true)}><Trash2 size={14} /> Delete task</button>
