@@ -144,7 +144,14 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
     content: initial,
     editorProps: {
       attributes: { class: 'notes-doc', 'aria-label': label },
-      handleKeyDown: (_view, event) => {
+      handleKeyDown: (view, event) => {
+        // ⌘K with text selected adds a link (otherwise ⌘K opens search).
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !view.state.selection.empty) {
+          event.preventDefault();
+          const href = view.state.selection.$from.marks().find((m) => m.type.name === 'link')?.attrs.href;
+          setLinkEdit(href ?? '');
+          return true;
+        }
         const k = keys.current;
         if (!k.slash || !k.items.length) return false;
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -232,8 +239,8 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
     const top = Math.min(a.top, b.top) - 44;
     formatPos = { top: top < 8 ? Math.max(a.bottom, b.bottom) + 8 : top, left: Math.max(8, Math.min(a.left, window.innerWidth - 340)) };
   }
-  const mark = (name: string, run: () => void, icon: ReactNode, title: string) => (
-    <button type="button" className={`fmt-button${editor.isActive(name) ? ' is-active' : ''}`} title={title} aria-label={title} aria-pressed={editor.isActive(name)}
+  const mark = (name: string, run: () => void, icon: ReactNode, title: string, kbd?: string) => (
+    <button type="button" className={`fmt-button${editor.isActive(name) ? ' is-active' : ''}`} data-tip={title} data-kbd={kbd} aria-label={kbd ? `${title} (${kbd})` : title} aria-pressed={editor.isActive(name)}
       onMouseDown={(e) => { e.preventDefault(); run(); }}>{icon}</button>
   );
 
@@ -310,8 +317,8 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
     <div className="notes-editor" ref={wrapRef} onMouseMove={onMove} onMouseLeave={() => !blockMenu && setHover(null)}>
       {hover && (
         <div className="block-handle" style={{ top: hover.top }}>
-          <button type="button" className="block-handle-btn" aria-label="Add a block below" title="Add a block below" onClick={addBelow}><Plus size={16} /></button>
-          <button type="button" className="block-handle-btn grip" aria-label="Drag to move, click for options" title="Drag to move · click for options"
+          <button type="button" className="block-handle-btn" aria-label="Add a block below" onClick={addBelow}><Plus size={16} /></button>
+          <button type="button" className="block-handle-btn grip" aria-label="Drag to move, click for options" data-tip="Drag to move · click for options"
             draggable onDragStart={onDragStart} onDragEnd={() => setHover(null)} onClick={openBlockMenu}><GripVertical size={16} /></button>
         </div>
       )}
@@ -341,16 +348,16 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
         </form>
       ) : (
         <div className="format-toolbar" role="toolbar" aria-label="Format text">
-          <button type="button" className={`fmt-button fmt-turn${turnMenu ? ' is-active' : ''}`} onMouseDown={(e) => { e.preventDefault(); setTurnMenu(!turnMenu); }} aria-label="Turn into" title="Turn into">
+          <button type="button" className={`fmt-button fmt-turn${turnMenu ? ' is-active' : ''}`} onMouseDown={(e) => { e.preventDefault(); setTurnMenu(!turnMenu); }} aria-label="Turn into">
             <Type size={16} /><span className="t-caption">Turn into</span>
           </button>
           <span className="fmt-sep" />
-          {mark('bold', () => editor.chain().focus().toggleBold().run(), <Bold size={16} />, 'Bold (⌘B)')}
-          {mark('italic', () => editor.chain().focus().toggleItalic().run(), <Italic size={16} />, 'Italic (⌘I)')}
-          {mark('underline', () => editor.chain().focus().toggleUnderline().run(), <Underline size={16} />, 'Underline (⌘U)')}
-          {mark('strike', () => editor.chain().focus().toggleStrike().run(), <Strikethrough size={16} />, 'Strikethrough (⌘⇧S)')}
-          {mark('code', () => editor.chain().focus().toggleCode().run(), <Code size={16} />, 'Inline code (⌘E)')}
-          {mark('link', () => setLinkEdit(editor.getAttributes('link').href ?? ''), <LinkIcon size={16} />, 'Link (⌘K)')}
+          {mark('bold', () => editor.chain().focus().toggleBold().run(), <Bold size={16} />, 'Bold', '⌘B')}
+          {mark('italic', () => editor.chain().focus().toggleItalic().run(), <Italic size={16} />, 'Italic', '⌘I')}
+          {mark('underline', () => editor.chain().focus().toggleUnderline().run(), <Underline size={16} />, 'Underline', '⌘U')}
+          {mark('strike', () => editor.chain().focus().toggleStrike().run(), <Strikethrough size={16} />, 'Strikethrough', '⌘⇧S')}
+          {mark('code', () => editor.chain().focus().toggleCode().run(), <Code size={16} />, 'Inline code', '⌘E')}
+          {mark('link', () => setLinkEdit(editor.getAttributes('link').href ?? ''), <LinkIcon size={16} />, 'Link', '⌘K')}
           {turnMenu && (
             <div className="menu notes-menu turn-menu">
               {BLOCKS.filter((b) => b.turnInto).map((b) => blockOption(b, false, () => { b.run(editor); setTurnMenu(false); }))}
@@ -368,7 +375,7 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
           <button type="button" className="fmt-button text" onClick={() => editor.chain().focus().deleteColumn().run()}><Minus size={14} /> Column</button>
           <span className="fmt-sep" />
           <button type="button" className="fmt-button text" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Header row</button>
-          <button type="button" className="fmt-button danger" aria-label="Delete table" title="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} /></button>
+          <button type="button" className="fmt-button danger" aria-label="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} /></button>
         </div>
       ), 'table-pop')}
 
@@ -382,7 +389,7 @@ export function NotesEditor({ doc, legacy, onChange, onEditing, label = 'Notes',
           {menuNode.type.name === 'callout' && <>
             <span className="t-caption muted notes-menu-title">Color</span>
             <div className="tone-row">{CALLOUT_TONES.map((t) => (
-              <button key={t} type="button" className={`tone-swatch tone-${t}${menuNode.attrs.tone === t ? ' is-active' : ''}`} aria-label={TONE_LABEL[t]} title={TONE_LABEL[t]}
+              <button key={t} type="button" className={`tone-swatch tone-${t}${menuNode.attrs.tone === t ? ' is-active' : ''}`} aria-label={TONE_LABEL[t]}
                 onClick={() => { editor.chain().command(({ tr }) => { tr.setNodeMarkup(blockMenu.pos, undefined, { ...menuNode.attrs, tone: t }); return true; }).run(); setBlockMenu(null); }} />
             ))}</div>
           </>}

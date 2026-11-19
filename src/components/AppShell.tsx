@@ -1,6 +1,7 @@
 import { useLayoutEffect } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { TooltipLayer } from './kit';
 
 export function AppShell() {
   const { pathname } = useLocation();
@@ -12,6 +13,7 @@ export function AppShell() {
     <div className="app">
       <Sidebar />
       <main className="main"><Outlet /></main>
+      <TooltipLayer />
     </div>
   );
 }

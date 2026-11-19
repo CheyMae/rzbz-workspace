@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LayoutGrid, List, User } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
@@ -23,6 +23,15 @@ export function SprintPage() {
   const [view, setView] = usePref<View>('sprint.view', 'project');
   const [open, setOpen] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
+  const loc = useLocation();
+  const nav = useNavigate();
+  const arrive = (loc.state as { openTask?: string } | null)?.openTask;
+  useEffect(() => {
+    if (!ready || !arrive) return;
+    const t = ws.tasks.find((x) => x.id === arrive);
+    if (t) setOpen(t);
+    nav(loc.pathname, { replace: true, state: null });
+  }, [ready, arrive]);
   if (!ready) return <Loading />;
   const s = ws.sprints.find((x) => x.id === id);
   if (!s || s.kind !== 'sprint') return <div className="page"><p className="t-body">Sprint not found. <Link to="/sprints">Back to Sprints</Link></p></div>;

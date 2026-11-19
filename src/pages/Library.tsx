@@ -72,7 +72,7 @@ export function Library() {
               {!closed.has(s) && <>
                 {shown.map((l) => (
                   <div key={l.id} className="tr t-body cols-library" role="row">
-                    <span className="lib-name" title={[l.name, l.version, l.notes].filter(Boolean).join(' · ')}>
+                    <span className="lib-name" data-tip={[l.name, l.version, l.notes].filter(Boolean).join(' · ')}>
                       <span>{SECTION_EMOJI[s] ?? '🔗'} {l.name}</span>
                       {l.version && <span className="t-caption muted">{l.version}</span>}
                     </span>

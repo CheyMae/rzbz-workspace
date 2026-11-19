@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from 'react';
+import { LoadingLine, Spinner } from './kit';
 import { usePref } from '../lib/prefs';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -177,7 +178,7 @@ export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () =
     <div className="scrim scrim-side" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <aside className="drawer" role="dialog" aria-modal="true" aria-label={`Task: ${live.title}`} style={{ width: `min(${shown}px, 100vw)` }}>
         <div className={`drawer-resize${dragW !== null ? ' is-dragging' : ''}`} role="separator" aria-orientation="vertical" aria-label="Panel width"
-          aria-valuenow={shown} aria-valuemin={MIN_PANEL} tabIndex={0} title="Drag to resize · double-click to reset"
+          aria-valuenow={shown} aria-valuemin={MIN_PANEL} tabIndex={0} data-tip="Drag to resize · double-click to reset"
           onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setDragW(window.innerWidth - e.clientX); }}
           onPointerMove={(e) => { if (dragW !== null) setDragW(window.innerWidth - e.clientX); }}
           onPointerUp={() => { if (dragW !== null) { setWidth(clampW(dragW)); setDragW(null); } }}
@@ -187,7 +188,7 @@ export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () =
           {project ? <Link to={`/projects/${project.id}`} className="t-caption muted plain-link" onClick={onClose}>{project.name}</Link> : <span className="t-caption muted">No project</span>}
           <span className="grow" />
           <span className={`save-state t-caption save-${saveState}`} role="status" aria-live="polite">
-            {saveState === 'editing' || saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? (error ? 'Couldn’t save' : <><Check size={14} /> Saved</>) : ''}
+            {saveState === 'editing' || saveState === 'saving' ? <><Spinner />Saving…</> : saveState === 'saved' ? (error ? 'Couldn’t save' : <><Check size={14} /> Saved</>) : ''}
           </span>
           <button type="button" className="icon-button" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
@@ -225,7 +226,7 @@ export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () =
         <hr className="rule" />
         <section className="notes-section">
           <span className="t-caption-emphasis">Notes</span>
-          <Suspense fallback={<p className="t-body muted">Loading notes…</p>}>
+          <Suspense fallback={<LoadingLine>Loading notes…</LoadingLine>}>
           <NotesEditor key={live.id} doc={live.notes_doc} legacy={live.notes} onEditing={() => setSaveState('editing')}
             onChange={(doc, text) => up({ notes_doc: doc, notes: text.trim() ? text : null })} />
           </Suspense>

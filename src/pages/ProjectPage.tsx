@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Archive, Calendar, CheckSquare, Clock, LayoutGrid, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
 import { DeleteProject } from './Projects';
 import { PeoplePicker } from '../components/PeoplePicker';
@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { GroupHeader, Loading, Menu, MenuItem, TagSelect, ViewTabs } from '../components/ui';
 import { NewTaskRow, TaskBoard, TaskDrawer, TaskRow, TaskTableHead, priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
+import { LoadingLine } from '../components/kit';
 import { PROJECT_STATUS, fmtDate, plural } from '../lib/format';
 import { sprintLabel, todayISO } from '../lib/sprints';
 import { usePinned, usePref } from '../lib/prefs';
@@ -37,6 +38,15 @@ export function ProjectPage() {
   const p = ws.projects.find((x) => x.id === id);
   const [name, setName] = useState(p?.name ?? '');
   useEffect(() => { setName(p?.name ?? ''); }, [p?.id]);
+  // Arriving from search or the sidebar: open that task, or start a new one.
+  const loc = useLocation();
+  const arrive = loc.state as { openTask?: string; newTask?: number } | null;
+  useEffect(() => {
+    if (!ready || !p || !arrive) return;
+    if (arrive.openTask) { const t = ws.tasks.find((x) => x.id === arrive.openTask); if (t) setOpen({ task: t }); }
+    if (arrive.newTask) void newTask();
+    nav(loc.pathname, { replace: true, state: null });
+  }, [ready, p?.id, arrive]);
 
   if (!ready) return <Loading />;
   if (!p) return <div className="page"><p className="t-body">This project isn’t here. It may be archived. <Link to="/projects">Back to Projects</Link></p></div>;
@@ -67,11 +77,11 @@ export function ProjectPage() {
   const current = sprints.find((s) => s.status === 'open') ?? addable.find((s) => s.status === 'open');
   const openTask = (t: Task) => setOpen({ task: t });
   // "New task": make it in the current sprint and open its panel with the name ready to type.
-  const newTask = async () => {
-    const draft = { project_id: p.id, sprint_id: current?.id ?? null, status: 'not_started' as const, title: 'Untitled' };
+  async function newTask() {
+    const draft = { project_id: p!.id, sprint_id: current?.id ?? null, status: 'not_started' as const, title: 'Untitled' };
     const tid = await createTask(draft);
     if (tid) setOpen({ task: { ...draft, id: tid } as Task, isNew: true });
-  };
+  }
 
   return (
     <div className="page page-doc page-doc-wide">
@@ -130,7 +140,7 @@ export function ProjectPage() {
           {sprints.map((s) => {
             const hasTasks = tasks.some((t) => t.sprint_id === s.id);
             return (
-              <span key={s.id} className="tag tag-default t-caption" title={sprintLabel(s, today)}>
+              <span key={s.id} className="tag tag-default t-caption" data-tip={sprintLabel(s, today)}>
                 <Link to={`/sprints/${s.id}`} className="plain-link">{s.name}</Link>
                 {!hasTasks && <button type="button" className="chip-x" aria-label={`Remove ${s.name}`} onClick={() => removeProjectSprint(p.id, s.id)}><X size={10} /></button>}
               </span>
@@ -161,7 +171,7 @@ export function ProjectPage() {
       <section className="doc-section">
         <h2 className="t-title-subsection">About this project</h2>
         <div className="callout about t-body"><span aria-hidden>💡</span>
-          <Suspense fallback={<p className="t-body muted">Loading…</p>}>
+          <Suspense fallback={<LoadingLine />}>
             <NotesEditor key={p.id} doc={p.about_doc} legacy={p.about} label="About this project" emptyHint="What is this project for? Type ‘/’ for blocks"
               onChange={(doc, text) => updateProject(p.id, { about_doc: doc, about: text.trim() ? text : null })} />
           </Suspense>

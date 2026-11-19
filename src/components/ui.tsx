@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Avatar } from './Avatar';
+import { AvatarStack } from './kit';
 import { firstName, type Tone } from '../lib/format';
 import type { Person } from '../lib/types';
 
 /** Figma "Tag". */
 export function Tag({ tone = 'default', children, title }: { tone?: Tone; children: ReactNode; title?: string }) {
-  return <span className={`tag tag-${tone} t-caption`} title={title}>{children}</span>;
+  return <span className={`tag tag-${tone} t-caption`} data-tip={title}>{children}</span>;
 }
 
 /** A tag that is also a dropdown (status, priority). Native select keeps it keyboard- and screen-reader-friendly. */
@@ -42,7 +43,7 @@ export function People({ people, empty = '—' }: { people: Person[]; empty?: st
   if (!people.length) return <span className="muted">{empty}</span>;
   return (
     <span className="people">
-      <Avatar name={people[0].name} size={20} />
+      {people.length > 1 ? <AvatarStack people={people} /> : <Avatar name={people[0].name} size={20} />}
       <span>{people.map(firstName).join(', ')}</span>
     </span>
   );
@@ -90,11 +91,21 @@ export function GroupHeader({ open, onToggle, children, count, right }: {
 }
 
 /** Small popover menu (row ⋯ menu, Add sprint). Closes on outside click and Escape. */
-export function Menu({ trigger, children, align = 'right' }: {
+export function Menu({ trigger, children, align = 'right', fixed }: {
   trigger: (open: boolean, toggle: () => void) => ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right';
+  /** Float above everything (for menus inside a scrolling area such as the sidebar). */
+  fixed?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !fixed || !ref.current) { setPos(null); return; }
+    const r = ref.current.getBoundingClientRect();
+    const left = Math.min(r.left, window.innerWidth - 248);
+    // Near the bottom of the window, open upwards.
+    setPos(r.bottom > window.innerHeight * 0.6 ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+  }, [open, fixed]);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
@@ -105,7 +116,7 @@ export function Menu({ trigger, children, align = 'right' }: {
   return (
     <span className="menu-anchor" ref={ref}>
       {trigger(open, () => setOpen((o) => !o))}
-      {open && <div className={`menu menu-${align}`} role="menu">{children(() => setOpen(false))}</div>}
+      {open && (!fixed || pos) && <div className={`menu menu-${align}`} role="menu" style={pos ? { position: 'fixed', top: pos.top ?? 'auto', bottom: pos.bottom ?? 'auto', left: pos.left, right: 'auto', zIndex: 60 } : undefined}>{children(() => setOpen(false))}</div>}
     </span>
   );
 }
