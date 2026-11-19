@@ -96,6 +96,13 @@ code { font-size: 0.9em; }
 input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .input-error { border-color: var(--border-error); }
 .field-error { color: var(--text-error); }
+/* Password fields: Show / Hide button inside the right edge of the box. */
+.input-reveal { position: relative; display: flex; }
+.input-reveal .input { flex: 1; min-width: 0; padding-right: 44px; }
+.reveal-button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--icon-default); cursor: pointer; }
+.reveal-button:hover { background: var(--surface-hover); }
+.auth-card .reveal-button { color: #4f4f4f; }
+.auth-card .reveal-button:hover { background: #f1e6d6; }
 
 /* ---------- Avatar ---------- */
 .avatar {
@@ -314,6 +321,11 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .menu-item-danger, .btn-delete { color: var(--text-error); }
 .menu-item-danger:hover, .btn-delete:hover:not(:disabled) { background: var(--surface-error); }
 .menu-list { max-height: 320px; overflow: auto; padding: var(--scale-50); }
+.people-menu { display: flex; flex-direction: column; min-width: 240px; }
+.people-search { display: flex; align-items: center; gap: var(--scale-50); margin: var(--scale-50); padding: var(--scale-50) var(--scale-100); border: var(--border-sm) solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-tertiary); }
+.people-search:focus-within { border-color: var(--border-focus); }
+.people-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: var(--type-caption); color: var(--text-primary); }
+.people-menu .menu-list { max-height: 260px; }
 .scrim { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: var(--scale-200); background: rgba(38, 38, 38, 0.35); }
 .dialog { width: 100%; max-width: 560px; max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: var(--scale-200); padding: var(--scale-300); background: var(--surface-canvas); border-radius: var(--radius-md); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2); }
 .dialog-footer { display: flex; justify-content: flex-end; gap: var(--scale-100); }
