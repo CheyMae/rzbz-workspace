@@ -63,8 +63,8 @@ const PLACEHOLDER: Record<Kind, string> = {
 };
 const continues = (k: Kind) => k === 'ul' || k === 'ol' || k === 'todo';
 
-export function BlockEditor({ value, onChange, label = 'Notes', emptyHint = 'Add notes, or type ‘/’ for blocks' }: {
-  value: string; onChange: (v: string) => void; label?: string; emptyHint?: string;
+export function BlockEditor({ value, onChange, onEditing, label = 'Notes', emptyHint = 'Add notes, or type ‘/’ for blocks' }: {
+  value: string; onChange: (v: string) => void; /** Called while there are unsaved edits. */ onEditing?: () => void; label?: string; emptyHint?: string;
 }) {
   const [blocks, setBlocks] = useState<Block[]>(() => parseBlocks(value));
   const [menu, setMenu] = useState<{ id: string; index: number } | null>(null);
@@ -89,7 +89,13 @@ export function BlockEditor({ value, onChange, label = 'Notes', emptyHint = 'Add
     const v = serializeBlocks(latest.current);
     if (v !== saved.current) { saved.current = v; onChange(v); }
   };
-  useEffect(() => { const t = setTimeout(commit, 700); return () => clearTimeout(t); }, [blocks]);
+  useEffect(() => {
+    if (serializeBlocks(blocks) === saved.current) return;
+    onEditing?.();
+    const t = setTimeout(commit, 700); return () => clearTimeout(t);
+  }, [blocks]);
+  // Closing the browser tab mid-sentence still saves.
+  useEffect(() => { window.addEventListener('pagehide', commit); return () => window.removeEventListener('pagehide', commit); }, []);
   useEffect(() => () => commit(), []);
 
   const update = (fn: (b: Block[]) => Block[]) => setBlocks((b) => { const n = fn(b); return n.length ? n : [{ id: nid(), kind: 'p', text: '' }]; });
@@ -113,11 +119,13 @@ export function BlockEditor({ value, onChange, label = 'Notes', emptyHint = 'Add
   const onText = (b: Block, text: string) => {
     // Markdown shortcuts, typed at the start of a plain block.
     // Works when typed key by key or pasted: the prefix turns the block and the rest stays as its text.
-    if (b.kind === 'p') {
-      if (/^---$/.test(text)) { turnInto(b, 'hr'); return; }
+    // A plain block, or any block with nothing typed in it yet (e.g. an empty to-do, then "- " makes it a bullet).
+    const fresh = (re: RegExp) => b.kind === 'p' || !b.text || !text.replace(re, '');
+    {
+      if (/^---$/.test(text) && fresh(/^---$/)) { turnInto(b, 'hr'); return; }
       const sc: [RegExp, Kind][] = [[/^## /, 'h2'], [/^# /, 'h1'], [/^[-*] /, 'ul'], [/^1\. /, 'ol'], [/^\[ ?\] /, 'todo'], [/^> /, 'quote']];
       for (const [re, kind] of sc) {
-        if (re.test(text) && !re.test(b.text)) {
+        if (re.test(text) && !re.test(b.text) && fresh(re)) {
           const rest = text.replace(re, '');
           setMenu(null); setBlock(b.id, { kind, text: rest, checked: false });
           focusNext.current = { id: b.id, pos: rest.length };

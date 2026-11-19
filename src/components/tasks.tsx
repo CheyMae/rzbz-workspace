@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePref } from '../lib/prefs';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
@@ -126,14 +127,42 @@ function TaskCard({ task, ix, onOpen, showProject, drag }: { task: Task; ix: Ind
   );
 }
 
-/** Side panel to edit one task. Text saves when you leave the field; everything else saves at once. */
+const MIN_PANEL = 400;
+
+/** Side panel to edit one task. Everything saves by itself; text a moment after you stop typing. */
 export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () => void; /** Just made: put the cursor in the name. */ isNew?: boolean }) {
-  const { ws, updateTask, setTaskAssignees, deleteTask } = useData();
+  const { ws, error, updateTask, setTaskAssignees, deleteTask } = useData();
   const [confirming, setConfirming] = useState(false);
   const ix = useIndex();
   const live = ws.tasks.find((t) => t.id === task.id) ?? task;
   const [title, setTitle] = useState(live.title);
   useEffect(() => { setTitle(live.title); }, [live.id]);
+
+  // Everything saves by itself (no need to press Done); the top of the panel says when it has.
+  const [saveState, setSaveState] = useState<'idle' | 'editing' | 'saving' | 'saved'>('idle');
+  const pending = useRef(0);
+  const track = (p: Promise<void>) => {
+    pending.current++; setSaveState('saving');
+    p.finally(() => { if (--pending.current === 0) setSaveState('saved'); });
+  };
+  const up = (patch: Partial<Task>) => track(updateTask(live.id, patch));
+  // The name saves a moment after you stop typing, when you leave the box, and when the panel closes.
+  const titleRef = useRef({ title, saved: live.title, id: live.id });
+  titleRef.current = { title, saved: live.title, id: live.id };
+  const saveTitle = () => { const t = title.trim(); if (t && t !== live.title) up({ title: t }); };
+  useEffect(() => {
+    if (!title.trim() || title.trim() === live.title) return;
+    setSaveState('editing');
+    const h = setTimeout(saveTitle, 700); return () => clearTimeout(h);
+  }, [title]);
+  useEffect(() => () => { const r = titleRef.current; const t = r.title.trim(); if (t && t !== r.saved) updateTask(r.id, { title: t }); }, []);
+
+  // Width: drag the left edge (or use the arrow keys on it); remembered on this browser.
+  const [width, setWidth] = usePref<number>('taskPanel.width', 520);
+  const [dragW, setDragW] = useState<number | null>(null);
+  const maxW = () => Math.max(MIN_PANEL, window.innerWidth - 240);
+  const clampW = (w: number) => Math.round(Math.min(maxW(), Math.max(MIN_PANEL, w)));
+  const shown = clampW(dragW ?? width);
   useEffect(() => {
     // Escape closes the panel, unless the delete confirmation is open (it closes first).
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.dialog')) onClose(); };
@@ -145,51 +174,63 @@ export function TaskDrawer({ task, onClose, isNew }: { task: Task; onClose: () =
 
   return (
     <div className="scrim scrim-side" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label={`Task: ${live.title}`}>
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label={`Task: ${live.title}`} style={{ width: `min(${shown}px, 100vw)` }}>
+        <div className={`drawer-resize${dragW !== null ? ' is-dragging' : ''}`} role="separator" aria-orientation="vertical" aria-label="Panel width"
+          aria-valuenow={shown} aria-valuemin={MIN_PANEL} tabIndex={0} title="Drag to resize · double-click to reset"
+          onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); setDragW(window.innerWidth - e.clientX); }}
+          onPointerMove={(e) => { if (dragW !== null) setDragW(window.innerWidth - e.clientX); }}
+          onPointerUp={() => { if (dragW !== null) { setWidth(clampW(dragW)); setDragW(null); } }}
+          onDoubleClick={() => setWidth(520)}
+          onKeyDown={(e) => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); setWidth(clampW(shown + (e.key === 'ArrowLeft' ? 40 : -40))); } }} />
         <div className="drawer-top">
           {project ? <Link to={`/projects/${project.id}`} className="t-caption muted plain-link" onClick={onClose}>{project.name}</Link> : <span className="t-caption muted">No project</span>}
+          <span className="grow" />
+          <span className={`save-state t-caption save-${saveState}`} role="status" aria-live="polite">
+            {saveState === 'editing' || saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? (error ? 'Couldn’t save' : <><Check size={14} /> Saved</>) : ''}
+          </span>
           <button type="button" className="icon-button" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
         {/* The name box grows with its text: an invisible copy of the text sets the height (pure CSS, no measuring). */}
         <div className="grow-text t-title-section" data-value={title}>
           <textarea className="title-input" rows={1} value={title} aria-label="Task name" placeholder="Untitled" autoFocus={isNew}
             onFocus={(e) => isNew && e.currentTarget.select()}
-            onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== live.title && updateTask(live.id, { title: title.trim() })} />
+            onChange={(e) => setTitle(e.target.value)} onBlur={saveTitle} />
         </div>
         <dl className="props">
-          <dt>Status</dt><dd><TagSelect label="Status" value={live.status} options={statusOptions} onChange={(v) => v && updateTask(live.id, { status: v })} /></dd>
-          <dt>Priority</dt><dd><TagSelect label="Priority" value={live.priority} options={priorityOptions} onChange={(v) => updateTask(live.id, { priority: v })} /></dd>
+          <dt>Status</dt><dd><TagSelect label="Status" value={live.status} options={statusOptions} onChange={(v) => v && up({ status: v })} /></dd>
+          <dt>Priority</dt><dd><TagSelect label="Priority" value={live.priority} options={priorityOptions} onChange={(v) => up({ priority: v })} /></dd>
           <dt>Sprint</dt><dd>
-            <select className="plain-select" value={live.sprint_id ?? ''} aria-label="Sprint" onChange={(e) => updateTask(live.id, { sprint_id: e.target.value || null })}>
+            <select className="plain-select" value={live.sprint_id ?? ''} aria-label="Sprint" onChange={(e) => up({ sprint_id: e.target.value || null })}>
               <option value="">No sprint</option>
               {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}{s.status === 'upcoming' ? ' (upcoming)' : ''}</option>)}
             </select>
             {live.status === 'next_up' && <span className="t-caption muted"> Next Up moves to the next sprint when this one closes.</span>}
           </dd>
           <dt>Project</dt><dd>
-            <select className="plain-select" value={live.project_id ?? ''} aria-label="Project" onChange={(e) => updateTask(live.id, { project_id: e.target.value || null })}>
+            <select className="plain-select" value={live.project_id ?? ''} aria-label="Project" onChange={(e) => up({ project_id: e.target.value || null })}>
               <option value="">No project</option>
               {ws.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </dd>
           <dt>Assignees</dt><dd>
-            <PeoplePicker people={ws.people} selected={ix.assignees(live)} empty="No one yet" onChange={(ids) => setTaskAssignees(live.id, ids)} />
+            <PeoplePicker people={ws.people} selected={ix.assignees(live)} empty="No one yet" onChange={(ids) => track(setTaskAssignees(live.id, ids))} />
           </dd>
           <dt>Due</dt><dd className="date-pair">
-            <input type="date" className="input" value={live.due_start ?? ''} aria-label="Start" onChange={(e) => updateTask(live.id, { due_start: e.target.value || null })} />
+            <input type="date" className="input" value={live.due_start ?? ''} aria-label="Start" onChange={(e) => up({ due_start: e.target.value || null })} />
             <span aria-hidden>→</span>
-            <input type="date" className="input" value={live.due_end ?? ''} aria-label="Due" onChange={(e) => updateTask(live.id, { due_end: e.target.value || null })} />
+            <input type="date" className="input" value={live.due_end ?? ''} aria-label="Due" onChange={(e) => up({ due_end: e.target.value || null })} />
           </dd>
         </dl>
         <hr className="rule" />
         <section className="notes-section">
           <span className="t-caption-emphasis">Notes</span>
-          <BlockEditor key={live.id} value={live.notes ?? ''} onChange={(v) => updateTask(live.id, { notes: v || null })} />
+          <BlockEditor key={live.id} value={live.notes ?? ''} onEditing={() => setSaveState('editing')} onChange={(v) => up({ notes: v || null })} />
         </section>
         {live.summary && <p className="t-caption muted">{live.summary}</p>}
         <div className="drawer-foot">
           <button type="button" className="btn btn-ghost btn-delete" onClick={() => setConfirming(true)}><Trash2 size={14} /> Delete task</button>
           <span className="grow" />
+          <span className="t-caption muted">Changes save automatically</span>
           <Button variant="secondary" onClick={onClose}>Done</Button>
         </div>
         {confirming && (

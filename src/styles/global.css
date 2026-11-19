@@ -460,3 +460,14 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 /* Project page: the task board uses the full page width; the rest stays document width */
 .page-doc.page-doc-wide { max-width: calc(1184px + 2 * var(--scale-600)); }
 .page-doc.page-doc-wide > :not(.doc-wide):not(.scrim) { max-width: 880px; width: 100%; }
+
+/* Task panel: resizable from its left edge; save status at the top */
+.drawer { position: relative; }
+.drawer-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; touch-action: none; }
+.drawer-resize::after { content: ''; position: absolute; left: 2px; top: 0; bottom: 0; width: 2px; background: transparent; transition: background 0.15s; }
+.drawer-resize:hover::after, .drawer-resize:focus-visible::after, .drawer-resize.is-dragging::after { background: var(--border-focus); }
+.drawer-resize:focus-visible { outline: none; }
+.drawer-top { gap: var(--scale-100); }
+.save-state { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); white-space: nowrap; }
+.save-saved { color: var(--text-success, var(--text-secondary)); }
+.drawer-foot { align-items: center; gap: var(--scale-150); }
