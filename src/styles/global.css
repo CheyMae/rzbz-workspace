@@ -374,7 +374,11 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .drawer .check-list { max-height: 180px; overflow: auto; }
 .rule { border: 0; border-top: var(--border-sm) solid var(--border-default); width: 100%; margin: var(--scale-100) 0; }
 .doc-section { display: flex; flex-direction: column; gap: var(--scale-150); }
-.about textarea { flex: 1; border: 0; background: none; resize: vertical; font: var(--type-body); color: var(--text-primary); outline: none; }
+.about > :not([aria-hidden]) { flex: 1; min-width: 0; }
+.about .notes-wrap, .about .notes-doc { min-width: 0; }
+/* The editor's hover area reaches back over the 💡 so the block handle sits just outside the box. */
+.about .notes-editor { position: relative; margin-left: -52px; padding-left: 52px; }
+.about .notes-tail { min-height: 4px; }
 
 /* Products, recap */
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--scale-200); }

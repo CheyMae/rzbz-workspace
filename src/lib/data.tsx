@@ -44,7 +44,6 @@ async function fetchAll<T>(table: string, select = '*', apply?: (q: any) => any)
 }
 
 const TASK_COLS = 'id,title,project_id,sprint_id,status,priority,phase,type,due_start,due_end,parent_task_id,summary,notes,carried_over_from,is_archived,created_at,updated_at';
-const PROJECT_COLS = 'id,name,emoji,product_id,status,priority,type,starts_on,ends_on,about,is_archived,legacy_year,created_at,updated_at';
 
 // Local preview only (npm run dev, then /?shell): read a git-ignored copy of the data and save nothing.
 // import.meta.env.DEV is false in the published build, so this never ships.
@@ -57,7 +56,7 @@ async function loadWorkspace(): Promise<Workspace> {
       fetchAll<Person>('people', '*'),
       fetchAll<Product>('products', '*', (q) => q.order('sort_order')),
       fetchAll<Sprint>('sprints', 'id,year,number,suffix,kind,name,starts_on,ends_on,status,closed_at', (q) => q.order('starts_on')),
-      fetchAll<Project>('projects', PROJECT_COLS, (q) => q.eq('is_archived', false).order('name')),
+      fetchAll<Project>('projects', '*', (q) => q.eq('is_archived', false).order('name')),
       fetchAll<Task>('tasks', '*', (q) => q.eq('is_archived', false).order('due_end', { ascending: true, nullsFirst: false })),
       fetchAll<LibraryItem>('library_items', '*', (q) => q.order('sort_order')),
       fetchAll<Link>('project_products'),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, Calendar, CheckSquare, Clock, LayoutGrid, MoreHorizontal, Pin, Plus, Tag as TagIcon, Trash2, Type, User, X } from 'lucide-react';
 import { DeleteProject } from './Projects';
@@ -11,6 +11,8 @@ import { PROJECT_STATUS, fmtDate, plural } from '../lib/format';
 import { sprintLabel, todayISO } from '../lib/sprints';
 import { usePinned, usePref } from '../lib/prefs';
 import type { ProjectStatus, Sprint, Task } from '../lib/types';
+
+const NotesEditor = lazy(() => import('../components/notes/NotesEditor').then((m) => ({ default: m.NotesEditor })));
 
 const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_feedback', 'done', 'canceled'] as ProjectStatus[])
   .map((s) => ({ value: s, ...PROJECT_STATUS[s] }));
@@ -34,8 +36,7 @@ export function ProjectPage() {
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const p = ws.projects.find((x) => x.id === id);
   const [name, setName] = useState(p?.name ?? '');
-  const [about, setAbout] = useState(p?.about ?? '');
-  useEffect(() => { setName(p?.name ?? ''); setAbout(p?.about ?? ''); }, [p?.id]);
+  useEffect(() => { setName(p?.name ?? ''); }, [p?.id]);
 
   if (!ready) return <Loading />;
   if (!p) return <div className="page"><p className="t-body">This project isn’t here. It may be archived. <Link to="/projects">Back to Projects</Link></p></div>;
@@ -159,11 +160,12 @@ export function ProjectPage() {
       <hr className="rule" />
       <section className="doc-section">
         <h2 className="t-title-subsection">About this project</h2>
-        <label className="callout about t-body"><span aria-hidden>💡</span>
-          <textarea rows={Math.max(2, Math.ceil((about.length || 1) / 90))} value={about} placeholder="What is this project for?"
-            aria-label="About this project" onChange={(e) => setAbout(e.target.value)}
-            onBlur={() => about !== (p.about ?? '') && updateProject(p.id, { about: about || null })} />
-        </label>
+        <div className="callout about t-body"><span aria-hidden>💡</span>
+          <Suspense fallback={<p className="t-body muted">Loading…</p>}>
+            <NotesEditor key={p.id} doc={p.about_doc} legacy={p.about} label="About this project" emptyHint="What is this project for? Type ‘/’ for blocks"
+              onChange={(doc, text) => updateProject(p.id, { about_doc: doc, about: text.trim() ? text : null })} />
+          </Suspense>
+        </div>
       </section>
 
       <section className="doc-section doc-wide">

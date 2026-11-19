@@ -31,6 +31,7 @@ export interface Project {
   starts_on: string | null;
   ends_on: string | null;
   about: string | null;
+  about_doc?: unknown | null;
   is_archived: boolean;
   legacy_year: number | null;
   created_at: string;
