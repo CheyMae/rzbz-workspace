@@ -594,3 +594,20 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .palette-empty { padding: var(--scale-300); text-align: center; }
 .palette-foot { display: flex; gap: var(--scale-200); padding: var(--scale-100) var(--scale-200); border-top: var(--border-sm) solid var(--border-default); }
 .palette-foot span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---------- Filter chips ---------- */
+.filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--scale-100); margin: calc(var(--scale-100) * -1) 0 var(--scale-100); }
+.filter-chip { padding: 0 var(--scale-50) 0 0; }
+.filter-chip-main { display: inline-flex; align-items: center; gap: 4px; padding: 2px var(--scale-50) 2px var(--scale-100); border: 0; background: none; color: inherit; font: inherit; cursor: pointer; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.filter-add { border: 0; cursor: pointer; font: inherit; gap: 4px; }
+.filter-add:hover { color: var(--text-primary); }
+.filter-clear { border: 0; background: none; cursor: pointer; padding: 2px 4px; }
+.filter-clear:hover { color: var(--text-primary); text-decoration: underline; }
+.filter-pop { z-index: 30; width: 260px; left: 0; right: auto; }
+.filter-options { display: flex; flex-direction: column; }
+.filter-options .menu-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; }
+.filter-option { white-space: normal; }
+.filter-check { flex: none; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 4px; border: var(--border-sm) solid var(--border-strong); color: var(--text-on-action); }
+.filter-check.is-on { background: var(--surface-action); border-color: var(--surface-action); }
+.filter-none { padding: var(--scale-100) var(--scale-150); }
+.filter-fields { display: flex; flex-direction: column; }

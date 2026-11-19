@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ExternalLink, MoreHorizontal, Pin, Plus, Search, Trash2 } from 'lucide-react';
+import { Archive, Clock, ExternalLink, MoreHorizontal, Package, Pin, Plus, Search, Tag as TagIcon, Trash2, Type, User, Users } from 'lucide-react';
+import { FilterBar, type FilterField, type Filters } from '../components/filters';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
 import { ConfirmDelete, GroupHeader, Loading, Menu, MenuItem, People, Progress, TagSelect } from '../components/ui';
 import { priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
 import { PROJECT_STATUS, fmtDate } from '../lib/format';
-import { usePinned } from '../lib/prefs';
+import { usePinned, usePref } from '../lib/prefs';
 import type { Project, ProjectStatus } from '../lib/types';
 
 const TABS: { value: ProjectStatus | 'all'; label: string }[] = [
@@ -28,12 +29,35 @@ export function Projects() {
   const [q, setQ] = useState('');
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [more, setMore] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = usePref<Filters>('projects.filters', {});
   if (!ready) return <Loading />;
 
-  const count = (s: ProjectStatus) => ws.projects.filter((p) => p.status === s).length;
+  const designers = ws.people.filter((x) => x.is_designer);
+  const personOpts = (list: typeof ws.people) => list.map((x) => ({ value: x.id, label: x.name }));
+  const fields: FilterField[] = [
+    { key: 'product', label: 'Product', icon: <Package size={14} />, options: ws.products.map((x) => ({ value: x.id, label: x.name, emoji: x.emoji ?? undefined })) },
+    { key: 'priority', label: 'Priority', icon: <TagIcon size={14} />, options: [...priorityOptions.map((o) => ({ value: o.value, label: o.label })), { value: 'none', label: 'No priority' }] },
+    { key: 'lead', label: 'Lead', icon: <User size={14} />, options: personOpts(designers), searchable: true },
+    { key: 'support', label: 'Support', icon: <Users size={14} />, options: personOpts(designers), searchable: true },
+    { key: 'type', label: 'Type', icon: <Type size={14} />, options: ['Existing', 'Revamp', 'New'].map((t) => ({ value: t, label: t })) },
+    { key: 'sprint', label: 'Sprint', icon: <Clock size={14} />, searchable: true,
+      options: ws.sprints.filter((x) => x.kind === 'sprint').sort((a, b) => b.starts_on.localeCompare(a.starts_on)).map((x) => ({ value: x.id, label: x.name })) },
+  ];
+  const any = (key: string, vals: string[]) => { const f = filters[key]; return !f?.length || vals.some((v) => f.includes(v)); };
+  const matches = (p: Project) =>
+    any('product', [ix.productOf(p)?.id ?? '']) &&
+    any('priority', [p.priority ?? 'none']) &&
+    any('lead', ix.people(p, 'lead').map((x) => x.id)) &&
+    any('support', ix.people(p, 'support').map((x) => x.id)) &&
+    any('type', [p.type ?? '']) &&
+    any('sprint', ix.projectSprints(p).map((x) => x.id));
+  const filtering = Object.values(filters).some((v) => v.length > 0);
+
+  const count = (s: ProjectStatus) => ws.projects.filter((p) => p.status === s && matches(p)).length;
   const rows = ws.projects
     .filter((p) => tab === 'all' || p.status === tab)
-    .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+    .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()))
+    .filter(matches);
 
   const groups = new Map<string, { name: string; emoji: string | null; rows: Project[] }>();
   for (const p of rows) {
@@ -59,7 +83,7 @@ export function Projects() {
           {TABS.map((t) => (
             <button key={t.value} type="button" role="tab" aria-selected={tab === t.value}
               className={`view-tab t-caption${tab === t.value ? ' is-selected' : ''}`} onClick={() => setTab(t.value)}>
-              {t.label} · {t.value === 'all' ? ws.projects.length : count(t.value)}
+              {t.label} · {t.value === 'all' ? ws.projects.filter(matches).length : count(t.value)}
             </button>
           ))}
         </div>
@@ -69,6 +93,7 @@ export function Projects() {
         </label>
         <Button icon={<Plus size={14} />} onClick={newProject}>New project</Button>
       </div>
+      <FilterBar fields={fields} value={filters} onChange={setFilters} />
 
       <div className="table" role="table">
         <div className="tr th t-caption cols-projects" role="row">
@@ -76,7 +101,8 @@ export function Projects() {
         </div>
         {sorted.map(([key, g]) => {
           const list = g.rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.name.localeCompare(b.name));
-          const shown = more.has(key) ? list : list.slice(0, 4);
+          const showAll = filtering || !!q || more.has(key);
+          const shown = showAll ? list : list.slice(0, 4);
           return (
             <div key={key} role="rowgroup">
               <GroupHeader open={!closed.has(key)} count={list.length} onToggle={() => setClosed(toggle(closed, key))}>
@@ -107,7 +133,7 @@ export function Projects() {
                     </div>
                   );
                 })}
-                {list.length > 4 && (key === 'none' ? (
+                {list.length > 4 && !(filtering || q) && (key === 'none' ? (
                   <button type="button" className="show-more t-caption muted" onClick={() => setMore(toggle(more, key))}>
                     {more.has(key) ? 'Show fewer' : `Show ${list.length - 4} more`}
                   </button>
