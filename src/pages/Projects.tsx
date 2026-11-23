@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, Clock, ExternalLink, MoreHorizontal, Package, Pin, Plus, Search, Tag as TagIcon, Trash2, Type, User, Users } from 'lucide-react';
+import { Archive, Clock, ExternalLink, Folder, List, MoreHorizontal, Package, Pin, Plus, Search, Tag as TagIcon, Trash2, Type, User, Users } from 'lucide-react';
 import { FilterBar, type FilterField, type Filters } from '../components/filters';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/Button';
-import { ConfirmDelete, GroupHeader, Loading, Menu, MenuItem, People, Progress, TagSelect } from '../components/ui';
+import { ConfirmDelete, GroupHeader, Loading, Menu, MenuItem, People, Progress, Tag, TagSelect, ViewTabs } from '../components/ui';
+import { ProjectFolder } from '../components/ProjectFolder';
 import { priorityOptions } from '../components/tasks';
 import { useData, useIndex } from '../lib/data';
-import { PROJECT_STATUS, fmtDate } from '../lib/format';
+import { PRIORITY, PROJECT_STATUS, firstName, fmtDate, folderColor } from '../lib/format';
+import { todayISO } from '../lib/sprints';
 import { usePinned, usePref } from '../lib/prefs';
 import type { Project, ProjectStatus } from '../lib/types';
 
@@ -15,6 +17,8 @@ const TABS: { value: ProjectStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' }, { value: 'in_progress', label: 'In Progress' }, { value: 'paused', label: 'Paused' },
   { value: 'done', label: 'Done' }, { value: 'not_started', label: 'Not started' },
 ];
+/** Folders shown per product before "Show more". */
+const FOLDER_LIMIT = 8;
 const statusOptions = (['not_started', 'in_progress', 'paused', 'waiting_for_feedback', 'done', 'canceled'] as ProjectStatus[])
   .map((s) => ({ value: s, ...PROJECT_STATUS[s] }));
 
@@ -30,14 +34,16 @@ export function Projects() {
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [more, setMore] = useState<Set<string>>(new Set());
   const [filters, setFilters] = usePref<Filters>('projects.filters', {});
+  const [view, setView] = usePref<'folders' | 'list'>('projects.view', 'folders');
   if (!ready) return <Loading />;
 
   // HR projects only show under Team › HR Stuff.
   const all = ws.projects.filter((p) => !ix.isTeam(p));
+  const today = todayISO();
   const designers = ws.people.filter((x) => x.is_designer);
   const personOpts = (list: typeof ws.people) => list.map((x) => ({ value: x.id, label: x.name }));
   const fields: FilterField[] = [
-    { key: 'product', label: 'Product', icon: <Package size={14} />, options: ws.products.filter((x) => x.kind !== 'team').map((x) => ({ value: x.id, label: x.name, emoji: x.emoji ?? undefined })) },
+    { key: 'product', label: 'Product', icon: <Package size={14} />, options: ws.products.filter((x) => x.id !== ix.team?.id).map((x) => ({ value: x.id, label: x.name, emoji: x.emoji ?? undefined })) },
     { key: 'priority', label: 'Priority', icon: <TagIcon size={14} />, options: [...priorityOptions.map((o) => ({ value: o.value, label: o.label })), { value: 'none', label: 'No priority' }] },
     { key: 'lead', label: 'Lead', icon: <User size={14} />, options: personOpts(designers), searchable: true },
     { key: 'support', label: 'Support', icon: <Users size={14} />, options: personOpts(designers), searchable: true },
@@ -68,7 +74,9 @@ export function Projects() {
     if (!groups.has(key)) groups.set(key, { name: pr?.name ?? 'No product', emoji: pr?.emoji ?? '—', rows: [] });
     groups.get(key)!.rows.push(p);
   }
-  const sorted = [...groups.entries()].sort((a, b) => (a[0] === 'none' ? 1 : b[0] === 'none' ? -1 : b[1].rows.length - a[1].rows.length));
+  // Biggest product first; Organize (waiting for a product) and No product go last, as on Products.
+  const rank = (k: string) => (k === 'none' ? 2 : k === ix.holding?.id ? 1 : 0);
+  const sorted = [...groups.entries()].sort((a, b) => rank(a[0]) - rank(b[0]) || b[1].rows.length - a[1].rows.length);
   const order: ProjectStatus[] = ['in_progress', 'paused', 'waiting_for_feedback', 'not_started', 'done', 'canceled'];
   const toggle = (set: Set<string>, k: string) => { const n = new Set(set); n.has(k) ? n.delete(k) : n.add(k); return n; };
 
@@ -90,6 +98,10 @@ export function Projects() {
           ))}
         </div>
         <span className="grow" />
+        <ViewTabs<'folders' | 'list'> value={view} onChange={setView} tabs={[
+          { value: 'folders', label: 'Folders', icon: <Folder size={14} /> },
+          { value: 'list', label: 'List', icon: <List size={14} /> },
+        ]} />
         <label className="search-inline t-caption"><Search size={14} aria-hidden />
           <input placeholder="Find a project" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a project" />
         </label>
@@ -97,7 +109,52 @@ export function Projects() {
       </div>
       <FilterBar fields={fields} value={filters} onChange={setFilters} />
 
-      <div className="table" role="table">
+      {view === 'folders' && (
+        <div className="folder-sections">
+          {sorted.map(([key, g]) => {
+            const list = g.rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.name.localeCompare(b.name));
+            const showAll = filtering || !!q || more.has(key);
+            const shown = showAll ? list : list.slice(0, FOLDER_LIMIT);
+            const active = list.filter((p) => p.status === 'in_progress').length;
+            return (
+              <section key={key} aria-label={g.name}>
+                <GroupHeader open={!closed.has(key)} count={list.length} onToggle={() => setClosed(toggle(closed, key))}
+                  right={key === 'none' || ix.holding?.id === key ? undefined : `${active} in progress`}>
+                  <span aria-hidden>{g.emoji} </span>{g.name}
+                </GroupHeader>
+                {!closed.has(key) && <>
+                  <div className="folder-grid">
+                    {shown.map((p) => {
+                      const pr = ix.progress(ix.tasksOf(p));
+                      const product = ix.productOf(p);
+                      const lead = ix.people(p, 'lead')[0];
+                      return (
+                        <ProjectFolder key={p.id} to={`/projects/${p.id}`} color={folderColor(product?.name)} emoji={p.emoji ?? product?.emoji} name={p.name}
+                          tags={<>
+                            <Tag tone={PROJECT_STATUS[p.status].tone}>{PROJECT_STATUS[p.status].label}</Tag>
+                            {p.priority && <Tag tone={PRIORITY[p.priority].tone}>{PRIORITY[p.priority].label}</Tag>}
+                          </>}
+                          done={pr.done} total={pr.total}
+                          pill={lead ? firstName(lead) : 'No lead yet'}
+                          date={p.ends_on ? fmtDate(p.ends_on, false) : 'No due date'}
+                          dateWarn={!!p.ends_on && p.ends_on < today && p.status !== 'done' && p.status !== 'canceled'} />
+                      );
+                    })}
+                  </div>
+                  {list.length > FOLDER_LIMIT && !(filtering || q) && (
+                    <button type="button" className="show-more t-caption muted" onClick={() => setMore(toggle(more, key))}>
+                      {more.has(key) ? 'Show fewer' : `Show ${list.length - FOLDER_LIMIT} more`}
+                    </button>
+                  )}
+                </>}
+              </section>
+            );
+          })}
+          {!rows.length && <p className="t-body muted empty-row">No projects match.</p>}
+        </div>
+      )}
+
+      {view === 'list' && <div className="table" role="table">
         <div className="tr th t-caption cols-projects" role="row">
           <span>Project</span><span>Status</span><span>Priority</span><span>Lead</span><span>End date</span><span>Progress</span><span />
         </div>
@@ -151,7 +208,7 @@ export function Projects() {
           );
         })}
         {!rows.length && <p className="t-body muted empty-row">No projects match.</p>}
-      </div>
+      </div>}
       {deleting && <DeleteProject project={deleting} taskCount={ix.tasksOf(deleting).length} onClose={() => setDeleting(null)}
         onConfirm={() => { pins.isPinned(deleting.id) && pins.toggle(deleting.id); deleteProject(deleting.id); }} />}
     </div>

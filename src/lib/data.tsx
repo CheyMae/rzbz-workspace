@@ -316,10 +316,11 @@ export function buildIndex(ws: Workspace) {
   const holding = ws.products.find((p) => p.kind === 'holding') ?? ws.products.find((p) => p.name === 'Organize') ?? null;
   const designers = ws.people.filter((p) => p.is_designer);
   /** HR projects (the 'team' product) live only under Team › HR Stuff, not on Home or Projects. */
-  const isTeam = (p: Project) => productOf(p)?.kind === 'team';
+  const team = ws.products.find((p) => p.kind === 'team') ?? ws.products.find((p) => p.name === 'HR Stuffs') ?? null;
+  const isTeam = (p: Project) => !!team && productOf(p)?.id === team.id;
 
   return {
-    holding, designers, isTeam,
+    holding, designers, team, isTeam,
     person, product, sprint, project, productOf, people, assignees, projectSprints, tasksOf, tasksIn, progress,
     tasksByProject, assigneesByTask,
   };

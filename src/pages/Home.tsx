@@ -69,7 +69,7 @@ export function Home() {
           <Plus size={12} aria-hidden /> Product:
           <select value={productId} onChange={(e) => setProductId(e.target.value)} aria-label="Filter by product">
             <option value="">All</option>
-            {ws.products.filter((p) => p.kind !== 'team').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {ws.products.filter((p) => p.id !== ix.team?.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </label>
       </div>

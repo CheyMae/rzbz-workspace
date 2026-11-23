@@ -111,7 +111,7 @@ export function Sidebar() {
           .map((s) => ({ key: s.id, to: `/sprints/${s.id}`, emoji: s.status === 'open' ? '🏃' : '🗓️', label: s.name })),
         empty: 'No open sprints',
       },
-      '/products': { kids: ws.products.map((p) => ({ key: p.id, to: `/products/${p.id}`, emoji: p.emoji ?? '📦', label: p.name })), empty: 'No products yet' },
+      '/products': { kids: ws.products.filter((p) => p.id !== ix.team?.id).map((p) => ({ key: p.id, to: `/products/${p.id}`, emoji: p.emoji ?? '📦', label: p.name })), empty: 'No products yet' },
     };
   }, [ws, active]);
 

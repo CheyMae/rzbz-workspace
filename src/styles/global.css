@@ -611,3 +611,7 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .filter-check.is-on { background: var(--surface-action); border-color: var(--surface-action); }
 .filter-none { padding: var(--scale-100) var(--scale-150); }
 .filter-fields { display: flex; flex-direction: column; }
+
+/* Projects › Folders: one section per product, project folders in a grid. */
+.folder-sections { display: flex; flex-direction: column; gap: var(--scale-200); }
+.folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--scale-200); padding-top: var(--scale-150); }
