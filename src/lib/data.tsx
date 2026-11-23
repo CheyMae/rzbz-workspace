@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
 import type { LibraryItem, Person, Product, Project, ProjectRole, Sprint, Task, TaskStatus } from './types';
 
@@ -67,6 +67,37 @@ async function loadWorkspace(): Promise<Workspace> {
   return { people, products, sprints, projects, tasks, library, projectProducts, projectPeople, projectSprints, taskAssignees };
 }
 
+/**
+ * Live updates: every table the workspace reads, how its rows are keyed, and where they go.
+ * When someone else saves, Supabase Realtime sends the changed row and it's merged in place,
+ * so open screens update without a refresh.
+ */
+type Row = Record<string, any>;
+const LIVE: { table: string; slot: keyof Workspace; key: string[]; hidden?: (r: Row) => boolean }[] = [
+  { table: 'people', slot: 'people', key: ['id'] },
+  { table: 'products', slot: 'products', key: ['id'] },
+  { table: 'sprints', slot: 'sprints', key: ['id'] },
+  { table: 'projects', slot: 'projects', key: ['id'], hidden: (r) => !!r.is_archived },
+  { table: 'tasks', slot: 'tasks', key: ['id'], hidden: (r) => !!r.is_archived },
+  { table: 'library_items', slot: 'library', key: ['id'] },
+  { table: 'project_products', slot: 'projectProducts', key: ['project_id', 'product_id'] },
+  { table: 'project_people', slot: 'projectPeople', key: ['project_id', 'person_id', 'role'] },
+  { table: 'project_sprints', slot: 'projectSprints', key: ['project_id', 'sprint_id'] },
+  { table: 'task_assignees', slot: 'taskAssignees', key: ['task_id', 'person_id'] },
+];
+const rowKey = (key: string[], r: Row) => key.map((k) => r[k]).join('|');
+
+/** Merge one change from Realtime into the workspace. */
+function applyChange(w: Workspace, spec: (typeof LIVE)[number], kind: string, row: Row, old: Row): Workspace {
+  const list = w[spec.slot] as Row[];
+  const k = rowKey(spec.key, kind === 'DELETE' ? old : row);
+  const rest = list.filter((r) => rowKey(spec.key, r) !== k);
+  if (kind === 'DELETE' || spec.hidden?.(row)) return rest.length === list.length ? w : { ...w, [spec.slot]: rest };
+  const i = list.findIndex((r) => rowKey(spec.key, r) === k);
+  const next = i < 0 ? [...list, row] : list.map((r, j) => (j === i ? { ...r, ...row } : r));
+  return { ...w, [spec.slot]: next };
+}
+
 type NewTask = Partial<Task> & { title: string };
 type NewProject = Partial<Project> & { name: string };
 
@@ -111,6 +142,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Rows this browser just edited: their own echo from Realtime is skipped for a moment,
+  // so a slower echo can't undo what you typed after it.
+  const mine = useRef(new Map<string, number>());
+  const markMine = (table: string, id: string) => mine.current.set(`${table}|${id}`, Date.now());
+
+  // Live updates from everyone else.
+  useEffect(() => {
+    if (!supabase || devFixture || !ready) return;
+    let joined = false;
+    const channel = supabase.channel('workspace');
+    for (const spec of LIVE) {
+      channel.on('postgres_changes' as any, { event: '*', schema: 'public', table: spec.table }, (msg: any) => {
+        const row: Row = msg.new ?? {}, old: Row = msg.old ?? {};
+        if (msg.eventType === 'UPDATE' && spec.key.length === 1) {
+          const at = mine.current.get(`${spec.table}|${row.id}`);
+          if (at && Date.now() - at < 4000) return;
+        }
+        setWs((w) => applyChange(w, spec, msg.eventType, row, old));
+      });
+    }
+    channel.subscribe((status) => {
+      // After a dropped connection, catch up on anything missed while away.
+      if (status === 'SUBSCRIBED') { if (joined) reload(); joined = true; }
+    });
+    // Coming back to a tab that sat in the background: catch up too.
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.hidden) hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > 60_000) reload();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); supabase!.removeChannel(channel); };
+  }, [ready, reload]);
+
   /** Apply locally, save, and reload if the save fails. */
   const save = useCallback(async (local: (w: Workspace) => Workspace, remote: () => PromiseLike<{ error: any }>) => {
     setWs(local);
@@ -122,10 +187,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const api = useMemo<DataApi>(() => ({
     ready, error, ws, reload,
 
-    updateTask: (id, patch) => save(
+    updateTask: (id, patch) => (markMine('tasks', id), save(
       (w) => ({ ...w, tasks: w.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) }),
       () => supabase!.from('tasks').update(patch).eq('id', id),
-    ),
+    )),
 
     createTask: async (t, assignees = []) => {
       if (devFixture) { // local preview: add it in memory only
@@ -152,10 +217,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       );
     },
 
-    updateProject: (id, patch) => save(
+    updateProject: (id, patch) => (markMine('projects', id), save(
       (w) => ({ ...w, projects: w.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)).filter((p) => !p.is_archived) }),
       () => supabase!.from('projects').update(patch).eq('id', id),
-    ),
+    )),
 
     createProject: async (p) => {
       const { data, error } = await supabase!.from('projects').insert(p).select('id').single();
@@ -212,10 +277,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return data as { moved_tasks: number; next_up_tasks: number; next: string };
     },
 
-    updatePerson: (id, patch) => save(
+    updatePerson: (id, patch) => (markMine('people', id), save(
       (w) => ({ ...w, people: w.people.map((p) => (p.id === id ? { ...p, ...patch } : p)) }),
       () => supabase!.from('people').update(patch).eq('id', id),
-    ),
+    )),
 
     createPerson: async (name, isDesigner) => {
       const { error } = await supabase!.from('people').insert({ name, is_designer: isDesigner, active: true });
