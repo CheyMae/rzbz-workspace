@@ -73,8 +73,14 @@ export function NewTaskRow({ defaults, label = 'New task' }: { defaults: Partial
   }
   return (
     <form className="new-row" onSubmit={async (e) => { e.preventDefault(); if (title.trim()) { await createTask({ ...defaults, title: title.trim() }); } setTitle(null); }}>
-      <input autoFocus className="input" placeholder="Task name, then Enter" value={title}
-        onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setTitle(null)} aria-label="New task name" />
+      {/* Wraps onto more lines instead of scrolling sideways; Enter adds the task. */}
+      <textarea autoFocus rows={1} className="input new-task-input" placeholder="Task name, then Enter" value={title}
+        ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
+        onChange={(e) => setTitle(e.target.value.replace(/\n/g, ' '))}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setTitle(null);
+          else if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); }
+        }} aria-label="New task name" />
     </form>
   );
 }

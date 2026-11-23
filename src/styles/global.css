@@ -615,3 +615,5 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 /* Projects › Folders: one section per product, project folders in a grid. */
 .folder-sections { display: flex; flex-direction: column; gap: var(--scale-200); }
 .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--scale-200); padding-top: var(--scale-150); }
+
+.new-task-input { display: block; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }

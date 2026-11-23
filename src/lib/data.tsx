@@ -351,8 +351,13 @@ export function buildIndex(ws: Workspace) {
     return m;
   };
 
-  const tasksByProject = group(ws.tasks, (t) => t.project_id);
-  const tasksBySprint = group(ws.tasks, (t) => t.sprint_id);
+  // Task lists and boards: latest due date first, earliest at the bottom.
+  // Tasks with no date yet sit on top (newest first), since they were usually just added.
+  const due = (t: Task) => t.due_end ?? t.due_start ?? '';
+  const latestFirst = [...ws.tasks].sort((a, b) =>
+    (due(a) ? 1 : 0) - (due(b) ? 1 : 0) || due(b).localeCompare(due(a)) || (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+  const tasksByProject = group(latestFirst, (t) => t.project_id);
+  const tasksBySprint = group(latestFirst, (t) => t.sprint_id);
   const assigneesByTask = group(ws.taskAssignees, (a) => a.task_id);
   const rolesByProject = group(ws.projectPeople, (r) => r.project_id);
   const sprintsByProject = group(ws.projectSprints, (l) => l.project_id);
