@@ -12,7 +12,7 @@ export const mainNav: NavItem[] = [
 export const teamNav: NavItem[] = [
   { path: '/hr', label: 'HR Stuff', emoji: '🧾', blurb: 'Empty for now.' },
   { path: '/hiring', label: 'Hiring People', emoji: '🤝', blurb: 'Empty for now.' },
-  { path: '/analytics', label: 'Analytics', emoji: '📊', blurb: 'Workload and progress across the team.' },
+  { path: '/analytics', label: 'Analytics', emoji: '📊', blurb: 'How the projects and the designers are doing.' },
 ];
 
 export const footerNav: NavItem[] = [

@@ -15,6 +15,7 @@ import { HrStuff } from './pages/HrStuff';
 import { Archive } from './pages/Archive';
 import { Welcome } from './pages/Welcome';
 import { Placeholder } from './pages/Placeholder';
+import { Analytics } from './pages/Analytics';
 import { SignIn } from './pages/SignIn';
 import { SetPassword } from './pages/SetPassword';
 import { NoAccess } from './pages/NoAccess';
@@ -75,7 +76,7 @@ function Shell() {
           <Route path="products/:id" element={<ProductPage />} />
           <Route path="hr" element={<HrStuff />} />
           <Route path="hiring" element={<Placeholder item={byPath['/hiring']} />} />
-          <Route path="analytics" element={<Placeholder item={byPath['/analytics']} />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="archive" element={<Archive />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

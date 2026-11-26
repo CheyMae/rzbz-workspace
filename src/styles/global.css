@@ -617,3 +617,14 @@ input:focus::placeholder, textarea:focus::placeholder { color: transparent; }
 .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--scale-200); padding-top: var(--scale-150); }
 
 .new-task-input { display: block; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Team › Analytics */
+.an-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--scale-200); }
+.an-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--scale-100); }
+.an-tile-label { display: inline-flex; align-items: center; gap: var(--scale-50); }
+.an-cols-people { grid-template-columns: 2fr repeat(5, 0.8fr) 1.2fr; }
+.an-cols-products { grid-template-columns: 2fr repeat(4, 0.8fr) 1.4fr; }
+.an-person { display: inline-flex; align-items: center; gap: var(--scale-100); }
+.an-list { display: flex; flex-direction: column; gap: var(--scale-100); }
+.an-list li { display: flex; justify-content: space-between; gap: var(--scale-150); }
+.an-list li a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
